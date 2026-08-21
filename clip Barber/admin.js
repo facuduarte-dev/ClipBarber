@@ -8,13 +8,25 @@ const form = document.querySelector('#admin-form');
 const editor = document.querySelector('#products-editor');
 const template = document.querySelector('#product-template');
 const status = document.querySelector('#save-status');
-const config = { ...DEFAULT_CONFIG, ...JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null') };
+const readLocalConfig = () => {
+  try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); }
+  catch { return null; }
+};
+const config = { ...DEFAULT_CONFIG, ...(readLocalConfig() || {}) };
 const authStatus = document.querySelector('#auth-status');
 const loginButton = document.querySelector('#login-button');
 const logoutButton = document.querySelector('#logout-button');
 const supabaseClient = window.CLIP_SUPABASE_URL && window.CLIP_SUPABASE_PUBLISHABLE_KEY && window.supabase
   ? window.supabase.createClient(window.CLIP_SUPABASE_URL, window.CLIP_SUPABASE_PUBLISHABLE_KEY)
   : null;
+
+const cleanText = (value, maxLength) => String(value || '').trim().slice(0, maxLength);
+const cleanUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+  } catch { return ''; }
+};
 
 const setAuthState = (session) => {
   loginButton.hidden = Boolean(session);
@@ -48,7 +60,7 @@ const addProductEditor = (product = { type: '', name: '', description: '', price
 const populateForm = (values) => {
   ['whatsapp', 'instagram', 'city', 'address', 'heroEyebrow', 'heroCopy'].forEach((field) => { form.elements[field].value = values[field] || ''; });
   form.elements.services.value = (values.services || []).join('\n');
-  editor.innerHTML = '';
+  editor.replaceChildren();
   (values.products || []).forEach(addProductEditor);
 };
 
@@ -66,19 +78,32 @@ editor.addEventListener('click', (event) => event.target.closest('.remove-produc
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const next = Object.fromEntries(['whatsapp', 'instagram', 'city', 'address', 'heroEyebrow', 'heroCopy'].map((key) => [key, form.elements[key].value.trim()]));
-  next.whatsapp = next.whatsapp.replace(/\D/g, '');
-  next.services = form.elements.services.value.split('\n').map((item) => item.trim()).filter(Boolean);
-  next.products = [...editor.querySelectorAll('.product-editor')].map((card) => Object.fromEntries(['name', 'price', 'type', 'description'].map((key) => [key, card.querySelector(`[data-field="${key}"]`).value.trim()]))).filter((product) => product.name && product.description);
+  if (!supabaseClient) { status.textContent = 'No hay conexión segura configurada.'; return; }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) { status.textContent = 'Iniciá sesión para guardar cambios.'; return; }
+  const next = {
+    whatsapp: cleanText(form.elements.whatsapp.value, 20).replace(/\D/g, ''),
+    instagram: cleanUrl(form.elements.instagram.value),
+    city: cleanText(form.elements.city.value, 80),
+    address: cleanText(form.elements.address.value, 140),
+    heroEyebrow: cleanText(form.elements.heroEyebrow.value, 80),
+    heroCopy: cleanText(form.elements.heroCopy.value, 300)
+  };
+  if (!/^\d{8,15}$/.test(next.whatsapp) || !next.instagram || !next.city || !next.address) {
+    status.textContent = 'Revisá WhatsApp, Instagram, ciudad y dirección antes de guardar.';
+    return;
+  }
+  next.services = form.elements.services.value.split('\n').map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 12);
+  next.products = [...editor.querySelectorAll('.product-editor')].slice(0, 12).map((card) => ({
+    name: cleanText(card.querySelector('[data-field="name"]').value, 70),
+    price: cleanText(card.querySelector('[data-field="price"]').value, 30),
+    type: cleanText(card.querySelector('[data-field="type"]').value, 40),
+    description: cleanText(card.querySelector('[data-field="description"]').value, 220)
+  })).filter((product) => product.name && product.description);
+  const { error } = await supabaseClient.from('site_config').upsert({ id: 'clip', data: next, updated_at: new Date().toISOString() });
+  if (error) { status.textContent = `No se pudo guardar online: ${error.message}`; return; }
   localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
-  if (supabaseClient) {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      const { error } = await supabaseClient.from('site_config').upsert({ id: 'clip', data: next, updated_at: new Date().toISOString() });
-      if (error) { status.textContent = `No se pudo guardar online: ${error.message}`; return; }
-      status.textContent = '✓ Cambios guardados online para todos los dispositivos.';
-    } else status.textContent = '✓ Cambios guardados solo en este navegador. Ingresá para publicarlos online.';
-  } else status.textContent = '✓ Cambios guardados en modo demo en este navegador.';
+  status.textContent = '✓ Cambios guardados online para todos los dispositivos.';
   setTimeout(() => { status.textContent = ''; }, 5000);
 });
 

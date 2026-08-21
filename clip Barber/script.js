@@ -21,13 +21,70 @@ const DEFAULT_CONFIG = {
   ]
 };
 
-const storedConfig = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null');
-let siteConfig = { ...DEFAULT_CONFIG, ...storedConfig };
-const safeWhatsapp = () => String(siteConfig.whatsapp).replace(/\D/g, '');
+const readLocalConfig = () => {
+  try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); }
+  catch { return null; }
+};
+
+const text = (value, fallback = '', maxLength = 180) => String(value ?? fallback).trim().slice(0, maxLength);
+const safeUrl = (value, fallback) => {
+  try {
+    const url = new URL(String(value));
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : fallback;
+  } catch { return fallback; }
+};
+const normalizeConfig = (value = {}) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const products = Array.isArray(source.products) ? source.products.slice(0, 12).map((product) => ({
+    type: text(product?.type, 'Producto', 40),
+    name: text(product?.name, 'Producto', 70),
+    description: text(product?.description, '', 220),
+    price: text(product?.price, '', 30)
+  })).filter((product) => product.name && product.description) : DEFAULT_CONFIG.products;
+  return {
+    whatsapp: text(source.whatsapp, DEFAULT_CONFIG.whatsapp, 20).replace(/\D/g, ''),
+    instagram: safeUrl(source.instagram, DEFAULT_CONFIG.instagram),
+    city: text(source.city, DEFAULT_CONFIG.city, 80),
+    address: text(source.address, DEFAULT_CONFIG.address, 140),
+    heroEyebrow: text(source.heroEyebrow, DEFAULT_CONFIG.heroEyebrow, 80),
+    heroCopy: text(source.heroCopy, DEFAULT_CONFIG.heroCopy, 300),
+    services: Array.isArray(source.services) ? source.services.slice(0, 12).map((service) => text(service, '', 80)).filter(Boolean) : DEFAULT_CONFIG.services,
+    products: products.length ? products : DEFAULT_CONFIG.products
+  };
+};
+
+let siteConfig = normalizeConfig(readLocalConfig() || DEFAULT_CONFIG);
+const safeWhatsapp = () => /^\d{8,15}$/.test(siteConfig.whatsapp) ? siteConfig.whatsapp : DEFAULT_CONFIG.whatsapp;
 
 const renderProducts = () => {
   const grid = document.querySelector('.product-grid');
-  grid.innerHTML = siteConfig.products.map((product) => `<article class="product-card reveal visible"><span class="product-type">${product.type}</span><h3>${product.name}</h3><p>${product.description}</p>${product.price ? `<strong class="product-price">${product.price}</strong>` : ''}<button class="button button-outline add-product" type="button" data-product="${product.name}">Agregar</button></article>`).join('');
+  const fragment = document.createDocumentFragment();
+  siteConfig.products.forEach((product) => {
+    const card = document.createElement('article');
+    card.className = 'product-card reveal visible';
+    const type = document.createElement('span');
+    type.className = 'product-type';
+    type.textContent = product.type;
+    const name = document.createElement('h3');
+    name.textContent = product.name;
+    const description = document.createElement('p');
+    description.textContent = product.description;
+    card.append(type, name, description);
+    if (product.price) {
+      const price = document.createElement('strong');
+      price.className = 'product-price';
+      price.textContent = product.price;
+      card.append(price);
+    }
+    const button = document.createElement('button');
+    button.className = 'button button-outline add-product';
+    button.type = 'button';
+    button.dataset.product = product.name;
+    button.textContent = 'Agregar';
+    card.append(button);
+    fragment.append(card);
+  });
+  grid.replaceChildren(fragment);
 };
 
 const applySiteConfig = () => {
@@ -43,7 +100,12 @@ const applySiteConfig = () => {
   document.querySelector('.detail span').textContent = siteConfig.address;
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteConfig.address}, ${siteConfig.city}`)}`;
   document.querySelectorAll('a[href*="google.com/maps/search"]').forEach((link) => { link.href = mapUrl; });
-  document.querySelector('#services-modal ul').innerHTML = siteConfig.services.map((service) => `<li>${service}</li>`).join('');
+  const servicesList = document.querySelector('#services-modal ul');
+  servicesList.replaceChildren(...siteConfig.services.map((service) => {
+    const item = document.createElement('li');
+    item.textContent = service;
+    return item;
+  }));
   renderProducts();
 };
 
@@ -54,7 +116,7 @@ if (supabaseReady) {
   const supabase = window.supabase.createClient(window.CLIP_SUPABASE_URL, window.CLIP_SUPABASE_PUBLISHABLE_KEY);
   supabase.from('site_config').select('data').eq('id', 'clip').single().then(({ data, error }) => {
     if (error || !data?.data) return;
-    siteConfig = { ...DEFAULT_CONFIG, ...data.data };
+    siteConfig = normalizeConfig(data.data);
     applySiteConfig();
     updateCart();
   });
@@ -119,10 +181,24 @@ const cart = new Map();
 
 const updateCart = () => {
   const products = [...cart.entries()];
-  cartList.innerHTML = products.map(([name, quantity]) => `
-    <li><span>${name} <strong>×${quantity}</strong></span>
-    <button type="button" class="remove-product" data-product="${name}" aria-label="Quitar ${name}">Quitar</button></li>
-  `).join('');
+  const fragment = document.createDocumentFragment();
+  products.forEach(([name, quantity]) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.append(document.createTextNode(`${name} `));
+    const count = document.createElement('strong');
+    count.textContent = `×${quantity}`;
+    label.append(count);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'remove-product';
+    remove.dataset.product = name;
+    remove.setAttribute('aria-label', `Quitar ${name}`);
+    remove.textContent = 'Quitar';
+    item.append(label, remove);
+    fragment.append(item);
+  });
+  cartList.replaceChildren(fragment);
   cartEmpty.hidden = products.length > 0;
   clearCart.disabled = products.length === 0;
 

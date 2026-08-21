@@ -1,17 +1,9 @@
--- Ejecutar una sola vez en Supabase: SQL Editor.
--- La web puede leer sus datos; solo administradores autorizados los modifican.
-create table if not exists public.site_config (
-  id text primary key,
-  data jsonb not null,
-  updated_at timestamptz not null default now()
-);
-
+-- Ejecutá este archivo si ya habías ejecutado una versión anterior de supabase.sql.
 create table if not exists public.site_admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
-alter table public.site_config enable row level security;
 alter table public.site_admins enable row level security;
 revoke all on table public.site_admins from anon, authenticated;
 
@@ -28,21 +20,15 @@ $$;
 revoke all on function public.is_site_admin() from public;
 grant execute on function public.is_site_admin() to authenticated;
 
-drop policy if exists "La web puede leer su configuración" on public.site_config;
 drop policy if exists "Usuarios autenticados administran la configuración" on public.site_config;
-drop policy if exists "La web puede leer la configuración" on public.site_config;
 drop policy if exists "Solo administradores modifican la configuración" on public.site_config;
-
-create policy "La web puede leer la configuración"
-on public.site_config for select to anon, authenticated
-using (id = 'clip');
 
 create policy "Solo administradores modifican la configuración"
 on public.site_config for all to authenticated
 using (id = 'clip' and public.is_site_admin())
 with check (id = 'clip' and public.is_site_admin());
 
--- ÚNICO PASO MANUAL: reemplazá el email y ejecutá estas tres líneas una vez.
+-- Reemplazá el email y ejecutá estas tres líneas una vez.
 -- insert into public.site_admins (user_id)
 -- select id from auth.users where email = 'tu-email@ejemplo.com'
 -- on conflict (user_id) do nothing;
