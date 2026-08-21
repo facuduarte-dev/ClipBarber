@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
   whatsapp: '59898743328',
   instagram: 'https://www.instagram.com/clip_barber_studio/',
   city: 'Paysandú, Uruguay',
-  address: 'Artesito 1464, Paysandú',
+  address: 'Andresito 1464, Paysandú',
   heroEyebrow: 'Más que un corte,',
   heroCopy: 'En CLIP Barber Studio combinamos técnica, actitud y pasión para que salgas siempre como te gusta.',
   services: ['Corte + Barba', 'Fade', 'Perfilado', 'Afeitado clásico', 'Diseño', 'Lavado y tratamientos capilares'],
@@ -57,7 +57,7 @@ const normalizeConfig = (value = {}) => {
     whatsapp: text(source.whatsapp, DEFAULT_CONFIG.whatsapp, 20).replace(/\D/g, ''),
     instagram: safeUrl(source.instagram, DEFAULT_CONFIG.instagram),
     city: text(source.city, DEFAULT_CONFIG.city, 80),
-    address: address === '18 de Julio 1234, Paysandú' ? DEFAULT_CONFIG.address : address,
+    address: ['18 de Julio 1234, Paysandú', 'Artesito 1464, Paysandú'].includes(address) ? DEFAULT_CONFIG.address : address,
     heroEyebrow: text(source.heroEyebrow, DEFAULT_CONFIG.heroEyebrow, 80),
     heroCopy: text(source.heroCopy, DEFAULT_CONFIG.heroCopy, 300),
     services: Array.isArray(source.services) ? source.services.slice(0, 12).map((service) => text(service, '', 80)).filter(Boolean) : DEFAULT_CONFIG.services,
@@ -132,7 +132,7 @@ const applySiteConfig = () => {
   const mapUrl = 'https://maps.app.goo.gl/f1CQpPvSQQpVAWu78';
   document.querySelectorAll('.location-info .button, .map-open').forEach((link) => { link.href = mapUrl; });
   const mapEmbed = document.querySelector('#map-embed');
-  if (mapEmbed) mapEmbed.src = `https://www.google.com/maps?q=${encodeURIComponent(`${siteConfig.address}, ${siteConfig.city}`)}&output=embed`;
+  if (mapEmbed) mapEmbed.src = 'https://www.google.com/maps?q=-32.3030081%2C-58.0730326&z=20&output=embed';
   renderProducts();
   renderGallery();
 };

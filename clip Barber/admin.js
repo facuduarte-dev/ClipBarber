@@ -1,6 +1,6 @@
 const CONFIG_KEY = 'clip-barber-config';
 const DEFAULT_CONFIG = {
-  whatsapp: '59898743328', instagram: 'https://www.instagram.com/clip_barber_studio/', city: 'Paysandú, Uruguay', address: 'Artesito 1464, Paysandú', heroEyebrow: 'Más que un corte,', heroCopy: 'En CLIP Barber Studio combinamos técnica, actitud y pasión para que salgas siempre como te gusta.',
+  whatsapp: '59898743328', instagram: 'https://www.instagram.com/clip_barber_studio/', city: 'Paysandú, Uruguay', address: 'Andresito 1464, Paysandú', heroEyebrow: 'Más que un corte,', heroCopy: 'En CLIP Barber Studio combinamos técnica, actitud y pasión para que salgas siempre como te gusta.',
   services: ['Corte + Barba', 'Fade', 'Perfilado', 'Afeitado clásico', 'Diseño', 'Lavado y tratamientos capilares'],
   products: [{ type: 'Fijación', name: 'Cera matte', description: 'Fijación flexible y acabado natural.', price: '' }, { type: 'Volumen', name: 'Polvo texturizante', description: 'Volumen instantáneo, textura y acabado seco.', price: '' }, { type: 'Cuidado', name: 'Aceite para barba', description: 'Suaviza, nutre y deja una barba prolija.', price: '' }],
   gallery: ['https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=1200&q=85']
@@ -114,7 +114,7 @@ if (supabaseClient) {
   supabaseClient.from('site_config').select('data').eq('id', 'clip').single().then(({ data }) => {
     if (!data?.data) return;
     Object.assign(config, data.data);
-    if (config.address === '18 de Julio 1234, Paysandú') config.address = DEFAULT_CONFIG.address;
+    if (['18 de Julio 1234, Paysandú', 'Artesito 1464, Paysandú'].includes(config.address)) config.address = DEFAULT_CONFIG.address;
     populateForm(config);
   });
 }
