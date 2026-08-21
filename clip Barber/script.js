@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
   whatsapp: '59898743328',
   instagram: 'https://www.instagram.com/clip_barber_studio/',
   city: 'Paysandú, Uruguay',
-  address: '18 de Julio 1234, Paysandú',
+  address: 'Artesito 1464, Paysandú',
   heroEyebrow: 'Más que un corte,',
   heroCopy: 'En CLIP Barber Studio combinamos técnica, actitud y pasión para que salgas siempre como te gusta.',
   services: ['Corte + Barba', 'Fade', 'Perfilado', 'Afeitado clásico', 'Diseño', 'Lavado y tratamientos capilares'],
@@ -52,11 +52,12 @@ const normalizeConfig = (value = {}) => {
     description: text(product?.description, '', 220),
     price: text(product?.price, '', 30)
   })).filter((product) => product.name && product.description) : DEFAULT_CONFIG.products;
+  const address = text(source.address, DEFAULT_CONFIG.address, 140);
   return {
     whatsapp: text(source.whatsapp, DEFAULT_CONFIG.whatsapp, 20).replace(/\D/g, ''),
     instagram: safeUrl(source.instagram, DEFAULT_CONFIG.instagram),
     city: text(source.city, DEFAULT_CONFIG.city, 80),
-    address: text(source.address, DEFAULT_CONFIG.address, 140),
+    address: address === '18 de Julio 1234, Paysandú' ? DEFAULT_CONFIG.address : address,
     heroEyebrow: text(source.heroEyebrow, DEFAULT_CONFIG.heroEyebrow, 80),
     heroCopy: text(source.heroCopy, DEFAULT_CONFIG.heroCopy, 300),
     services: Array.isArray(source.services) ? source.services.slice(0, 12).map((service) => text(service, '', 80)).filter(Boolean) : DEFAULT_CONFIG.services,
