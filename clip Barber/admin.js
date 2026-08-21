@@ -155,11 +155,13 @@ const setScheduleStatus = (message, type = '') => {
 const formatDate = (value) => new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
 const renderAppointments = (appointments) => {
   appointmentsBody.replaceChildren();
+  const labels = ['Fecha', 'Hora', 'Cliente', 'WhatsApp', 'Servicio'];
   appointments.forEach((appointment) => {
     const row = document.createElement('tr');
     const values = [formatDate(appointment.booking_date), String(appointment.booking_time).slice(0, 5), appointment.client_name, appointment.client_phone, appointment.service];
     values.forEach((value, index) => {
       const cell = document.createElement('td');
+      cell.dataset.label = labels[index];
       if (index === 3) {
         const link = document.createElement('a');
         link.href = `https://wa.me/${String(value).replace(/\D/g, '')}`;
@@ -171,6 +173,7 @@ const renderAppointments = (appointments) => {
       row.append(cell);
     });
     const actionCell = document.createElement('td');
+    actionCell.dataset.label = 'Acción';
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
     cancelButton.className = 'danger appointment-cancel';

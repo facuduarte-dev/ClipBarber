@@ -62,7 +62,7 @@ const bookingEmailHtml = (booking: { date: string; time: string; name: string; p
         </table>
       </td></tr>
       <tr><td align="center" style="padding:24px 32px 30px">
-        <a href="https://clip-barber.vercel.app/admin.html" style="display:inline-block;background:#c7a36b;color:#191715;text-decoration:none;font-weight:800;font-size:14px;padding:14px 22px;border-radius:999px">Ver reservas en el panel</a>
+        <a href="https://clip-barber.vercel.app/barbero.html" style="display:inline-block;background:#c7a36b;color:#191715;text-decoration:none;font-weight:800;font-size:14px;padding:14px 22px;border-radius:999px">Ver turnos en el panel</a>
         <p style="font-size:12px;line-height:1.5;color:#8b837b;margin:20px 0 0">Este aviso se generó automáticamente cuando se confirmó una reserva.</p>
       </td></tr>
     </table>
