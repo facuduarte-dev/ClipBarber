@@ -86,7 +86,6 @@ const addProductEditor = (product = { type: '', name: '', description: '', price
 
 const populateForm = (values) => {
   ['whatsapp', 'instagram', 'city', 'address', 'heroEyebrow', 'heroCopy'].forEach((field) => { form.elements[field].value = values[field] || ''; });
-  form.elements.services.value = (values.services || []).join('\n');
   editor.replaceChildren();
   (values.products || []).forEach(addProductEditor);
   galleryUrls = (Array.isArray(values.gallery) ? values.gallery : DEFAULT_CONFIG.gallery).map(cleanImageUrl).filter(Boolean).slice(0, 12);
@@ -240,7 +239,6 @@ form.addEventListener('submit', async (event) => {
     status.textContent = 'Revisá WhatsApp, Instagram, ciudad y dirección antes de guardar.';
     return;
   }
-  next.services = form.elements.services.value.split('\n').map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 12);
   next.products = [...editor.querySelectorAll('.product-editor')].slice(0, 12).map((card) => ({
     name: cleanText(card.querySelector('[data-field="name"]').value, 70),
     price: cleanText(card.querySelector('[data-field="price"]').value, 30),

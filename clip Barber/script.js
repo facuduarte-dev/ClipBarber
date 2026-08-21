@@ -130,12 +130,6 @@ const applySiteConfig = () => {
   document.querySelector('.detail span').textContent = siteConfig.address;
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteConfig.address}, ${siteConfig.city}`)}`;
   document.querySelectorAll('a[href*="google.com/maps/search"]').forEach((link) => { link.href = mapUrl; });
-  const servicesList = document.querySelector('#services-modal ul');
-  servicesList.replaceChildren(...siteConfig.services.map((service) => {
-    const item = document.createElement('li');
-    item.textContent = service;
-    return item;
-  }));
   renderProducts();
   renderGallery();
 };
@@ -168,7 +162,7 @@ menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', () =
 window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 24), { passive: true });
 
 const modalTrigger = document.querySelector('[data-modal]');
-if (modalTrigger) modalTrigger.addEventListener('click', () => {
+if (modalTrigger && modal) modalTrigger.addEventListener('click', () => {
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
   modal.querySelector('.modal-close').focus();
@@ -179,7 +173,7 @@ const closeModal = (element) => {
   element.setAttribute('aria-hidden', 'true');
 };
 
-modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal));
+if (modal) modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal));
 document.querySelector('.gallery-grid').addEventListener('click', (event) => {
   const item = event.target.closest('[data-lightbox]');
   if (!item) return;
@@ -195,7 +189,7 @@ lightbox.querySelector('.modal-close').addEventListener('click', () => closeModa
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   setMenu(false);
-  closeModal(modal);
+  if (modal) closeModal(modal);
   closeModal(lightbox);
 });
 
