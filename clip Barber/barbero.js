@@ -35,6 +35,15 @@ const renderStaffAppointments = (items) => {
       } else cell.textContent = value;
       row.append(cell);
     });
+    const actionCell = document.createElement('td');
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'danger appointment-cancel';
+    cancelButton.dataset.appointmentId = String(item.id);
+    cancelButton.dataset.appointmentLabel = `${dateLabel(item.booking_date)} a las ${String(item.booking_time).slice(0, 5)} — ${item.client_name}`;
+    cancelButton.textContent = 'Cancelar';
+    actionCell.append(cancelButton);
+    row.append(actionCell);
     staffBody.append(row);
   });
   staffEmpty.hidden = items.length > 0;
@@ -44,7 +53,7 @@ async function loadStaffAppointments() {
   if (!staffClient) return;
   staffStatus.textContent = 'Cargando turnos…';
   const today = new Date().toISOString().slice(0, 10);
-  const { data, error } = await staffClient.from('appointments').select('booking_date, booking_time, client_name, client_phone, service').gte('booking_date', today).order('booking_date').order('booking_time');
+  const { data, error } = await staffClient.from('appointments').select('id, booking_date, booking_time, client_name, client_phone, service').gte('booking_date', today).order('booking_date').order('booking_time');
   if (error) {
     staffStatus.textContent = 'No tenés permiso para ver turnos. Pedile al administrador que habilite tu usuario.';
     renderStaffAppointments([]);
@@ -66,3 +75,14 @@ if (staffClient) {
 } else setStaffState(null);
 
 document.querySelector('#staff-refresh').addEventListener('click', loadStaffAppointments);
+staffBody.addEventListener('click', async (event) => {
+  const button = event.target.closest('.appointment-cancel');
+  if (!button || !staffClient) return;
+  if (!confirm(`¿Cancelar el turno de ${button.dataset.appointmentLabel}? El horario volverá a quedar disponible.`)) return;
+  button.disabled = true;
+  staffStatus.textContent = 'Cancelando turno…';
+  const { error } = await staffClient.from('appointments').delete().eq('id', Number(button.dataset.appointmentId));
+  if (error) { staffStatus.textContent = 'No se pudo cancelar el turno. Probá nuevamente.'; button.disabled = false; return; }
+  staffStatus.textContent = 'Turno cancelado. El horario volvió a quedar disponible.';
+  await loadStaffAppointments();
+});

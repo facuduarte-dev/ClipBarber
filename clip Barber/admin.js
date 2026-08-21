@@ -170,6 +170,15 @@ const renderAppointments = (appointments) => {
       } else cell.textContent = value;
       row.append(cell);
     });
+    const actionCell = document.createElement('td');
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'danger appointment-cancel';
+    cancelButton.dataset.appointmentId = String(appointment.id);
+    cancelButton.dataset.appointmentLabel = `${formatDate(appointment.booking_date)} a las ${String(appointment.booking_time).slice(0, 5)} — ${appointment.client_name}`;
+    cancelButton.textContent = 'Cancelar';
+    actionCell.append(cancelButton);
+    row.append(actionCell);
     appointmentsBody.append(row);
   });
   appointmentsEmpty.hidden = appointments.length > 0;
@@ -194,11 +203,22 @@ const loadWeekendSchedule = async () => {
 const loadAppointments = async () => {
   if (!supabaseClient) return;
   const today = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabaseClient.from('appointments').select('booking_date, booking_time, client_name, client_phone, service').gte('booking_date', today).order('booking_date').order('booking_time');
+  const { data, error } = await supabaseClient.from('appointments').select('id, booking_date, booking_time, client_name, client_phone, service').gte('booking_date', today).order('booking_date').order('booking_time');
   if (error) { appointmentsEmpty.textContent = 'Falta activar el módulo de turnos en Supabase.'; appointmentsEmpty.hidden = false; appointmentsTableWrap.hidden = true; return; }
   renderAppointments(data || []);
 };
 document.querySelector('#refresh-appointments').addEventListener('click', loadAppointments);
+appointmentsBody.addEventListener('click', async (event) => {
+  const button = event.target.closest('.appointment-cancel');
+  if (!button || !supabaseClient) return;
+  if (!confirm(`¿Cancelar el turno de ${button.dataset.appointmentLabel}? El horario volverá a quedar disponible.`)) return;
+  button.disabled = true;
+  setScheduleStatus('Cancelando turno…');
+  const { error } = await supabaseClient.from('appointments').delete().eq('id', Number(button.dataset.appointmentId));
+  if (error) { setScheduleStatus('No se pudo cancelar el turno. Probá nuevamente.', 'error'); button.disabled = false; return; }
+  setScheduleStatus('Turno cancelado. El horario volvió a quedar disponible.', 'success');
+  await loadAppointments();
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
