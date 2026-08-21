@@ -8,4 +8,6 @@
 
 Si ya habías ejecutado la versión anterior, corré `supabase-security-migration.sql` en SQL Editor y después autorizá tu email al final de ese mismo archivo.
 
+Para activar las reservas de domingo, ejecutá después `supabase-bookings-migration.sql` en SQL Editor.
+
 La clave `service_role` nunca debe ponerse en `supabase-config.js`: solo corresponde usar la Publishable key.

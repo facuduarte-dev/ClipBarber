@@ -112,9 +112,10 @@ const applySiteConfig = () => {
 applySiteConfig();
 
 const supabaseReady = window.CLIP_SUPABASE_URL && window.CLIP_SUPABASE_PUBLISHABLE_KEY && window.supabase;
+let siteSupabase = null;
 if (supabaseReady) {
-  const supabase = window.supabase.createClient(window.CLIP_SUPABASE_URL, window.CLIP_SUPABASE_PUBLISHABLE_KEY);
-  supabase.from('site_config').select('data').eq('id', 'clip').single().then(({ data, error }) => {
+  siteSupabase = window.supabase.createClient(window.CLIP_SUPABASE_URL, window.CLIP_SUPABASE_PUBLISHABLE_KEY);
+  siteSupabase.from('site_config').select('data').eq('id', 'clip').single().then(({ data, error }) => {
     if (error || !data?.data) return;
     siteConfig = normalizeConfig(data.data);
     applySiteConfig();
@@ -233,3 +234,95 @@ clearCart.addEventListener('click', () => {
 });
 
 updateCart();
+
+const bookingForm = document.querySelector('#booking-form');
+if (bookingForm) {
+  const bookingDate = document.querySelector('#booking-date');
+  const bookingTime = document.querySelector('#booking-time');
+  const bookingName = document.querySelector('#booking-name');
+  const bookingPhone = document.querySelector('#booking-phone');
+  const bookingService = document.querySelector('#booking-service');
+  const bookingStatus = document.querySelector('#booking-status');
+  const bookingSubmit = document.querySelector('#booking-submit');
+  const dateValue = (date) => {
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  };
+  const isSunday = (value) => new Date(`${value}T12:00:00`).getDay() === 0;
+  const nextSunday = () => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() + ((7 - date.getDay()) % 7 || 7));
+    return dateValue(date);
+  };
+  const setBookingStatus = (message, type = '') => {
+    bookingStatus.textContent = message;
+    bookingStatus.className = `booking-status ${type}`.trim();
+  };
+  const loadAvailableSlots = async () => {
+    const date = bookingDate.value;
+    bookingTime.replaceChildren(new Option('Cargando horarios…', ''));
+    bookingTime.disabled = true;
+    bookingSubmit.disabled = true;
+    if (!isSunday(date)) {
+      setBookingStatus('Elegí un domingo para reservar tu turno.', 'error');
+      bookingTime.replaceChildren(new Option('Elegí un domingo', ''));
+      return;
+    }
+    if (!siteSupabase) {
+      setBookingStatus('Los turnos todavía no están habilitados.', 'error');
+      bookingTime.replaceChildren(new Option('Turnos no disponibles', ''));
+      return;
+    }
+    const { data, error } = await siteSupabase.rpc('available_sunday_slots', { p_booking_date: date });
+    if (error) {
+      setBookingStatus('No pudimos cargar los horarios. Probá de nuevo en unos minutos.', 'error');
+      bookingTime.replaceChildren(new Option('Horarios no disponibles', ''));
+      return;
+    }
+    if (!data?.length) {
+      setBookingStatus('No hay horarios disponibles para ese domingo.', 'error');
+      bookingTime.replaceChildren(new Option('Sin horarios disponibles', ''));
+      return;
+    }
+    bookingTime.replaceChildren(new Option('Elegí un horario', ''), ...data.map(({ booking_time }) => {
+      const time = String(booking_time).slice(0, 5);
+      return new Option(time, time);
+    }));
+    bookingTime.disabled = false;
+    bookingSubmit.disabled = false;
+    setBookingStatus(`${data.length} horarios disponibles para este domingo.`, 'success');
+  };
+
+  bookingDate.min = dateValue(new Date());
+  bookingDate.value = nextSunday();
+  bookingDate.addEventListener('change', loadAvailableSlots);
+  bookingForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = bookingName.value.trim();
+    const phone = bookingPhone.value.replace(/\D/g, '');
+    if (!name || !/^\d{8,15}$/.test(phone) || !bookingTime.value) {
+      setBookingStatus('Completá tu nombre, WhatsApp y horario para reservar.', 'error');
+      return;
+    }
+    bookingSubmit.disabled = true;
+    setBookingStatus('Guardando tu turno…');
+    const { error } = await siteSupabase.rpc('create_appointment', {
+      p_booking_date: bookingDate.value,
+      p_booking_time: bookingTime.value,
+      p_client_name: name,
+      p_client_phone: phone,
+      p_service: bookingService.value
+    });
+    if (error) {
+      setBookingStatus(error.message.includes('Horario') ? 'Ese horario acaba de ocuparse. Elegí otro.' : 'No pudimos reservar el turno. Probá nuevamente.', 'error');
+      await loadAvailableSlots();
+      return;
+    }
+    bookingName.value = '';
+    bookingPhone.value = '';
+    setBookingStatus('¡Turno reservado! Te esperamos en CLIP Barber Studio.', 'success');
+    await loadAvailableSlots();
+  });
+  loadAvailableSlots();
+}
