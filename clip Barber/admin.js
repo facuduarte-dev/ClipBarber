@@ -155,7 +155,7 @@ const setScheduleStatus = (message, type = '') => {
 const formatDate = (value) => new Intl.DateTimeFormat('es-UY', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
 const renderAppointments = (appointments) => {
   appointmentsBody.replaceChildren();
-  const labels = ['Fecha', 'Hora', 'Cliente', 'WhatsApp', 'Servicio'];
+  const labels = ['Fecha', 'Hora', 'Nombre', 'WhatsApp', 'Servicio'];
   appointments.forEach((appointment) => {
     const row = document.createElement('tr');
     const values = [formatDate(appointment.booking_date), String(appointment.booking_time).slice(0, 5), appointment.client_name, appointment.client_phone, appointment.service];
