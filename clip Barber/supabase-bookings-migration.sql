@@ -26,12 +26,20 @@ create table if not exists public.appointments (
   unique (booking_date, booking_time)
 );
 
+create table if not exists public.site_staff (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
 alter table public.sunday_schedule enable row level security;
 alter table public.appointments enable row level security;
+alter table public.site_staff enable row level security;
+revoke all on table public.site_staff from anon, authenticated;
 
 drop policy if exists "La web consulta horarios de domingo" on public.sunday_schedule;
 drop policy if exists "Solo administradores modifican horarios" on public.sunday_schedule;
 drop policy if exists "Solo administradores ven reservas" on public.appointments;
+drop policy if exists "Personal autorizado ve reservas" on public.appointments;
 
 create policy "La web consulta horarios de domingo"
 on public.sunday_schedule for select to anon, authenticated
@@ -42,9 +50,23 @@ on public.sunday_schedule for all to authenticated
 using (id = 'sunday' and public.is_site_admin())
 with check (id = 'sunday' and public.is_site_admin());
 
-create policy "Solo administradores ven reservas"
+create or replace function public.can_view_appointments()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_site_admin()
+    or exists (select 1 from public.site_staff where user_id = auth.uid());
+$$;
+
+revoke all on function public.can_view_appointments() from public;
+grant execute on function public.can_view_appointments() to authenticated;
+
+create policy "Personal autorizado ve reservas"
 on public.appointments for select to authenticated
-using (public.is_site_admin());
+using (public.can_view_appointments());
 
 create or replace function public.available_sunday_slots(p_booking_date date)
 returns table (booking_time time)
@@ -75,8 +97,8 @@ begin
     make_interval(mins => schedule.slot_minutes)
   ) as slot
   where not exists (
-    select 1 from public.appointments
-    where booking_date = p_booking_date and booking_time = slot::time
+    select 1 from public.appointments a
+    where a.booking_date = p_booking_date and a.booking_time = slot::time
   )
   order by slot;
 end;
@@ -129,3 +151,9 @@ revoke all on function public.available_sunday_slots(date) from public;
 revoke all on function public.create_appointment(date, time, text, text, text) from public;
 grant execute on function public.available_sunday_slots(date) to anon, authenticated;
 grant execute on function public.create_appointment(date, time, text, text, text) to anon, authenticated;
+
+-- Para dar acceso a un barbero, creá primero su usuario en Authentication > Users
+-- y luego reemplazá el email y ejecutá estas tres líneas:
+-- insert into public.site_staff (user_id)
+-- select id from auth.users where email = 'email-del-barbero@ejemplo.com'
+-- on conflict (user_id) do nothing;
