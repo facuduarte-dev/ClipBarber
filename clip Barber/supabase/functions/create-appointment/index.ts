@@ -14,6 +14,12 @@ const json = (body: Record<string, unknown>, status = 200, origin = '') => new R
   },
 })
 
+const requestFingerprint = async (ip: string) => {
+  const source = new TextEncoder().encode(`${turnstileSecret}:${ip}`)
+  const digest = await crypto.subtle.digest('SHA-256', source)
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin') || ''
   if (!allowedOrigin || origin !== allowedOrigin) return json({ error: 'Origen no autorizado' }, 403)
@@ -24,6 +30,7 @@ Deno.serve(async (request) => {
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return json({ error: 'Solicitud inválida' }, 400, origin)
+  if (String(body.website || '').trim()) return json({ error: 'Solicitud inválida' }, 400, origin)
   const token = String(body.turnstileToken || '')
   if (!token) return json({ error: 'Completá la verificación de seguridad' }, 400, origin)
 
@@ -34,6 +41,8 @@ Deno.serve(async (request) => {
   }).then((response) => response.json()).catch(() => null)
   if (!verification?.success) return json({ error: 'La verificación de seguridad venció. Intentá de nuevo.' }, 400, origin)
 
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('cf-connecting-ip')?.trim() || 'unknown'
+  const fingerprint = await requestFingerprint(ip)
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
   const { error } = await supabase.rpc('create_appointment', {
     p_booking_date: String(body.bookingDate || ''),
@@ -41,6 +50,7 @@ Deno.serve(async (request) => {
     p_client_name: String(body.clientName || ''),
     p_client_phone: String(body.clientPhone || '').replace(/\D/g, ''),
     p_service: String(body.service || ''),
+    p_request_fingerprint: fingerprint,
   })
   if (error) return json({ error: error.message }, 400, origin)
   return json({ ok: true }, 201, origin)

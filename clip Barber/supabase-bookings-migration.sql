@@ -41,10 +41,20 @@ create table if not exists public.site_staff (
   created_at timestamptz not null default now()
 );
 
+-- Guarda únicamente una huella hash de origen, nunca la IP del cliente.
+create table if not exists public.booking_rate_limits (
+  request_fingerprint text primary key check (request_fingerprint ~ '^[a-f0-9]{64}$'),
+  rate_date date not null,
+  request_count integer not null default 0 check (request_count >= 0),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.sunday_schedule enable row level security;
 alter table public.appointments enable row level security;
 alter table public.site_staff enable row level security;
+alter table public.booking_rate_limits enable row level security;
 revoke all on table public.site_staff from anon, authenticated;
+revoke all on table public.booking_rate_limits from anon, authenticated;
 
 drop policy if exists "La web consulta horarios de domingo" on public.sunday_schedule;
 drop policy if exists "La web consulta horarios de fin de semana" on public.sunday_schedule;
@@ -118,12 +128,15 @@ begin
 end;
 $$;
 
+drop function if exists public.create_appointment(date, time, text, text, text);
+
 create or replace function public.create_appointment(
   p_booking_date date,
   p_booking_time time,
   p_client_name text,
   p_client_phone text,
-  p_service text
+  p_service text,
+  p_request_fingerprint text
 )
 returns jsonb
 language plpgsql
@@ -133,6 +146,7 @@ as $$
 declare
   schedule public.sunday_schedule%rowtype;
   local_today date := (now() at time zone 'America/Montevideo')::date;
+  rate_count integer;
 begin
   if p_booking_date is null
     or p_booking_date < local_today
@@ -142,7 +156,8 @@ begin
   end if;
   if char_length(trim(p_client_name)) not between 2 and 80
     or trim(p_client_phone) !~ '^\d{8,15}$'
-    or char_length(trim(p_service)) not between 2 and 60 then
+    or char_length(trim(p_service)) not between 2 and 60
+    or coalesce(p_request_fingerprint, '') !~ '^[a-f0-9]{64}$' then
     raise exception 'Datos de reserva inválidos';
   end if;
 
@@ -170,6 +185,22 @@ begin
     raise exception 'Horario no disponible';
   end if;
 
+  -- Limita a cuatro solicitudes verificadas y válidas por día desde el mismo
+  -- origen, sin guardar la IP del cliente. El hash solo lo genera la función segura.
+  perform pg_advisory_xact_lock(hashtext(p_request_fingerprint));
+  insert into public.booking_rate_limits (request_fingerprint, rate_date, request_count)
+  values (p_request_fingerprint, local_today, 1)
+  on conflict (request_fingerprint) do update
+  set rate_date = local_today,
+      request_count = case when public.booking_rate_limits.rate_date < local_today then 1 else public.booking_rate_limits.request_count + 1 end,
+      updated_at = now()
+  where public.booking_rate_limits.rate_date < local_today
+     or public.booking_rate_limits.request_count < 4
+  returning request_count into rate_count;
+  if not found then
+    raise exception 'Este origen alcanzó el límite diario de reservas';
+  end if;
+
   insert into public.appointments (booking_date, booking_time, client_name, client_phone, service)
   values (p_booking_date, p_booking_time, trim(p_client_name), trim(p_client_phone), trim(p_service));
   return jsonb_build_object('ok', true);
@@ -179,9 +210,9 @@ end;
 $$;
 
 revoke all on function public.available_weekend_slots(date) from public;
-revoke all on function public.create_appointment(date, time, text, text, text) from public;
+revoke all on function public.create_appointment(date, time, text, text, text, text) from public;
 grant execute on function public.available_weekend_slots(date) to anon, authenticated;
-grant execute on function public.create_appointment(date, time, text, text, text) to service_role;
+grant execute on function public.create_appointment(date, time, text, text, text, text) to service_role;
 
 -- Para dar acceso a un barbero, creá primero su usuario en Authentication > Users
 -- y luego reemplazá el email y ejecutá estas tres líneas:

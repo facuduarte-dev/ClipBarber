@@ -276,6 +276,7 @@ if (bookingForm) {
   const bookingName = document.querySelector('#booking-name');
   const bookingPhone = document.querySelector('#booking-phone');
   const bookingService = document.querySelector('#booking-service');
+  const bookingWebsite = document.querySelector('#booking-website');
   const bookingStatus = document.querySelector('#booking-status');
   const bookingSubmit = document.querySelector('#booking-submit');
   const bookingCaptcha = document.querySelector('#booking-captcha');
@@ -369,7 +370,7 @@ if (bookingForm) {
     bookingSubmit.disabled = true;
     setBookingStatus('Guardando tu turno…');
     const { data, error } = await siteSupabase.functions.invoke('create-appointment', {
-      body: { bookingDate: bookingDate.value, bookingTime: bookingTime.value, clientName: name, clientPhone: phone, service: bookingService.value, turnstileToken: captchaToken }
+      body: { bookingDate: bookingDate.value, bookingTime: bookingTime.value, clientName: name, clientPhone: phone, service: bookingService.value, website: bookingWebsite.value, turnstileToken: captchaToken }
     });
     if (error || !data?.ok) {
       const message = data?.error || '';
