@@ -21,6 +21,20 @@ Para recibir un mensaje por cada reserva confirmada, configurá una app oficial 
 - `WHATSAPP_ACCESS_TOKEN`: token permanente de Meta.
 - `WHATSAPP_PHONE_NUMBER_ID`: identificador del número emisor en WhatsApp Business.
 - `WHATSAPP_NOTIFY_TO`: opcional; número que recibe los avisos, en formato internacional sin `+`. Por defecto usa el WhatsApp actual del negocio (`59898743328`).
-- `WHATSAPP_API_VERSION`: opcional; por defecto usa `v22.0`.
+- `WHATSAPP_API_VERSION`: opcional; por defecto usa `v26.0`.
+
+Para avisos que deban llegar siempre, creá y aprobá en WhatsApp Manager una plantilla de texto llamada, por ejemplo, `nueva_reserva_clip` con este cuerpo:
+
+```
+✂️ Nueva reserva en CLIP Barber Studio
+
+Fecha: {{1}}
+Hora: {{2}}
+Cliente: {{3}}
+WhatsApp: {{4}}
+Servicio: {{5}}
+```
+
+Después guardá `WHATSAPP_TEMPLATE_NAME=nueva_reserva_clip` y, si corresponde, `WHATSAPP_TEMPLATE_LANGUAGE=es` como secretos. Sin plantilla, Meta solo permite el mensaje de texto cuando existe una conversación reciente con el número destinatario.
 
 La reserva nunca falla si WhatsApp no está configurado o si el proveedor no responde. Los tokens solo viven en los secretos de Supabase, nunca en la web ni en GitHub.

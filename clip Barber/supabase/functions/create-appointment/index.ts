@@ -8,7 +8,9 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const whatsappAccessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
 const whatsappPhoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')
 const whatsappNotifyTo = Deno.env.get('WHATSAPP_NOTIFY_TO') || '59898743328'
-const whatsappApiVersion = Deno.env.get('WHATSAPP_API_VERSION') || 'v22.0'
+const whatsappTemplateName = Deno.env.get('WHATSAPP_TEMPLATE_NAME')
+const whatsappTemplateLanguage = Deno.env.get('WHATSAPP_TEMPLATE_LANGUAGE') || 'es'
+const whatsappApiVersion = Deno.env.get('WHATSAPP_API_VERSION') || 'v26.0'
 
 const json = (body: Record<string, unknown>, status = 200, origin = '') => new Response(JSON.stringify(body), {
   status,
@@ -37,10 +39,20 @@ const sendBookingNotification = async (booking: { date: string; time: string; na
     `WhatsApp: ${booking.phone}`,
     `Servicio: ${booking.service}`,
   ].join('\n')
+  const payload = whatsappTemplateName
+    ? {
+        messaging_product: 'whatsapp', to: whatsappNotifyTo, type: 'template',
+        template: {
+          name: whatsappTemplateName,
+          language: { code: whatsappTemplateLanguage },
+          components: [{ type: 'body', parameters: [booking.date, booking.time, booking.name, booking.phone, booking.service].map((text) => ({ type: 'text', text })) }],
+        },
+      }
+    : { messaging_product: 'whatsapp', to: whatsappNotifyTo, type: 'text', text: { preview_url: false, body: message } }
   const response = await fetch(`https://graph.facebook.com/${whatsappApiVersion}/${whatsappPhoneNumberId}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${whatsappAccessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: whatsappNotifyTo, type: 'text', text: { preview_url: false, body: message } }),
+    body: JSON.stringify(payload),
   })
   if (!response.ok) console.error('No se pudo enviar la notificación de WhatsApp.')
 }
