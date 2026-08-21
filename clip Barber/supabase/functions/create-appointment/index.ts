@@ -41,6 +41,35 @@ const bookingMessage = (booking: { date: string; time: string; name: string; pho
 
 const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] || character))
 
+const bookingEmailHtml = (booking: { date: string; time: string; name: string; phone: string; service: string }) => {
+  const field = (label: string, value: string) => `<tr><td style="padding:12px 0;border-bottom:1px solid #eee8df;color:#766f67;font-size:13px;letter-spacing:.04em;text-transform:uppercase">${label}</td><td style="padding:12px 0 12px 16px;border-bottom:1px solid #eee8df;color:#1f1c19;font-size:15px;font-weight:700;text-align:right">${escapeHtml(value)}</td></tr>`
+  return `<!doctype html>
+<html lang="es"><body style="margin:0;padding:24px 12px;background:#f3f0eb;font-family:Arial,Helvetica,sans-serif;color:#1f1c19">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 8px 28px rgba(34,28,22,.10)">
+      <tr><td style="background:#191715;padding:28px 32px;color:#fff">
+        <div style="font-size:12px;letter-spacing:.18em;font-weight:700;color:#c7a36b">CLIP BARBER STUDIO</div>
+        <div style="font-size:25px;font-weight:800;margin-top:10px">Nueva reserva ✂</div>
+        <div style="font-size:14px;color:#d8d1c9;margin-top:8px">Tenés un nuevo turno para revisar.</div>
+      </td></tr>
+      <tr><td style="padding:26px 32px 12px">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          ${field('Fecha', booking.date)}
+          ${field('Hora', booking.time)}
+          ${field('Cliente', booking.name)}
+          ${field('WhatsApp', booking.phone)}
+          ${field('Servicio', booking.service)}
+        </table>
+      </td></tr>
+      <tr><td align="center" style="padding:24px 32px 30px">
+        <a href="https://clip-barber.vercel.app/admin.html" style="display:inline-block;background:#c7a36b;color:#191715;text-decoration:none;font-weight:800;font-size:14px;padding:14px 22px;border-radius:999px">Ver reservas en el panel</a>
+        <p style="font-size:12px;line-height:1.5;color:#8b837b;margin:20px 0 0">Este aviso se generó automáticamente cuando se confirmó una reserva.</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`
+}
+
 const sendBookingNotification = async (booking: { date: string; time: string; name: string; phone: string; service: string }) => {
   // La notificación es opcional: si WhatsApp Business no está configurado,
   // la reserva continúa funcionando con normalidad.
@@ -75,7 +104,7 @@ const sendBookingEmail = async (booking: { date: string; time: string; name: str
       to: [bookingNotificationEmail],
       subject: `Nueva reserva: ${booking.date} ${booking.time}`,
       text: bookingMessage(booking),
-      html: `<h2>Nueva reserva en CLIP Barber Studio</h2><p><strong>Fecha:</strong> ${escapeHtml(booking.date)}<br><strong>Hora:</strong> ${escapeHtml(booking.time)}<br><strong>Cliente:</strong> ${escapeHtml(booking.name)}<br><strong>WhatsApp:</strong> ${escapeHtml(booking.phone)}<br><strong>Servicio:</strong> ${escapeHtml(booking.service)}</p>`,
+      html: bookingEmailHtml(booking),
     }),
   })
   if (!response.ok) console.error('No se pudo enviar la notificación por correo.')
