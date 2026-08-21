@@ -132,6 +132,22 @@ begin
     raise exception 'Datos de reserva inválidos';
   end if;
 
+  -- Serializa reservas del mismo número para que no pueda saltear límites
+  -- enviando varias solicitudes al mismo tiempo.
+  perform pg_advisory_xact_lock(hashtext(trim(p_client_phone)));
+  if exists (
+    select 1 from public.appointments
+    where client_phone = trim(p_client_phone) and booking_date = p_booking_date
+  ) then
+    raise exception 'Ya tenés un turno reservado para este domingo';
+  end if;
+  if (
+    select count(*) from public.appointments
+    where client_phone = trim(p_client_phone) and booking_date >= local_today
+  ) >= 2 then
+    raise exception 'Este número ya alcanzó el máximo de dos turnos futuros';
+  end if;
+
   select * into schedule from public.sunday_schedule where id = 'sunday';
   if not found or not schedule.enabled then raise exception 'Turnos no disponibles'; end if;
   if p_booking_time < schedule.start_time or p_booking_time >= schedule.end_time
@@ -150,7 +166,7 @@ $$;
 revoke all on function public.available_sunday_slots(date) from public;
 revoke all on function public.create_appointment(date, time, text, text, text) from public;
 grant execute on function public.available_sunday_slots(date) to anon, authenticated;
-grant execute on function public.create_appointment(date, time, text, text, text) to anon, authenticated;
+grant execute on function public.create_appointment(date, time, text, text, text) to service_role;
 
 -- Para dar acceso a un barbero, creá primero su usuario en Authentication > Users
 -- y luego reemplazá el email y ejecutá estas tres líneas:

@@ -10,4 +10,6 @@ Si ya habías ejecutado la versión anterior, corré `supabase-security-migratio
 
 Para activar las reservas de domingo, ejecutá después `supabase-bookings-migration.sql` en SQL Editor.
 
+Para que el administrador pueda subir fotos de trabajos, ejecutá también `supabase-gallery-migration.sql` en SQL Editor.
+
 La clave `service_role` nunca debe ponerse en `supabase-config.js`: solo corresponde usar la Publishable key.

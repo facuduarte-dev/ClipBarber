@@ -38,6 +38,7 @@
       <form class="booking-form reveal" id="booking-form">
         <div class="booking-status" id="booking-status" role="status">Cargando horarios disponibles…</div>
         <div class="booking-grid"><label>Domingo<input id="booking-date" name="booking-date" type="date" required></label><label>Horario<select id="booking-time" name="booking-time" required disabled><option value="">Elegí primero un domingo</option></select></label><label>Nombre y apellido<input id="booking-name" name="booking-name" maxlength="80" autocomplete="name" required></label><label>WhatsApp<input id="booking-phone" name="booking-phone" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="098 743 328" required></label><label class="booking-wide">Servicio<select id="booking-service" name="booking-service"><option value="Corte">Corte</option><option value="Corte + barba">Corte + barba</option><option value="Barba">Barba</option></select></label></div>
+        <div id="booking-captcha" class="booking-captcha"></div>
         <button class="button button-primary" id="booking-submit" type="submit" disabled>Reservar turno</button>
       </form>
     </section>
@@ -52,7 +53,7 @@
       <div class="cart-panel reveal" aria-live="polite"><p class="eyebrow">Tu pedido</p><p class="cart-empty">Todavía no agregaste productos.</p><ul class="cart-list"></ul><div class="cart-actions"><button class="button button-outline clear-cart" type="button" disabled>Vaciar lista</button><a class="button button-primary whatsapp-order" href="https://wa.me/59898743328?text=Hola%20CLIP%2C%20quiero%20consultar%20por%20sus%20productos." target="_blank" rel="noopener noreferrer">Pedir por WhatsApp</a></div></div>
     </section>
 
-    <section class="work section-pad" id="trabajo"><div class="section-heading reveal"><p class="eyebrow">Nuestro trabajo</p><h2>Resultados que hablan</h2></div><div class="gallery-grid"><button class="gallery-item reveal" type="button" data-lightbox="https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=1200&q=85"><img src="https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=800&q=80" alt="Corte masculino con fade" loading="lazy"></button><button class="gallery-item reveal" type="button" data-lightbox="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1200&q=85"><img src="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=800&q=80" alt="Barbero trabajando un corte" loading="lazy"></button><button class="gallery-item reveal" type="button" data-lightbox="https://images.unsplash.com/photo-1593702295094-aea8c9c7a8d7?auto=format&fit=crop&w=1200&q=85"><img src="https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=1200&q=85" alt="Resultado de corte texturizado" loading="lazy"></button><button class="gallery-item reveal" type="button" data-lightbox="https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=1200&q=85"><img src="https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=800&q=80" alt="Perfilado de barba y cabello" loading="lazy"></button></div><a class="button button-outline centered-button" href="#instagram">Ver más fotos en Instagram</a></section> 
+    <section class="work section-pad" id="trabajo"><div class="section-heading reveal"><p class="eyebrow">Nuestro trabajo</p><h2>Resultados que hablan</h2></div><div class="gallery-grid"></div><a class="button button-outline centered-button" href="#instagram">Ver más fotos en Instagram</a></section>
     
     
    <section class="location section-pad section-dark" id="ubicacion">
@@ -106,6 +107,7 @@
   <div class="lightbox" id="lightbox" aria-hidden="true"><button class="modal-close" type="button" aria-label="Cerrar imagen">×</button><img src="" alt=""></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.0"></script>
   <script src="supabase-config.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <script src="script.js"></script>
 </body>
 </html>

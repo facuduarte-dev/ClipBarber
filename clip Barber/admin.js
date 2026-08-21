@@ -2,7 +2,8 @@ const CONFIG_KEY = 'clip-barber-config';
 const DEFAULT_CONFIG = {
   whatsapp: '59898743328', instagram: 'https://www.instagram.com/clip_barber_studio/', city: 'Paysandú, Uruguay', address: '18 de Julio 1234, Paysandú', heroEyebrow: 'Más que un corte,', heroCopy: 'En CLIP Barber Studio combinamos técnica, actitud y pasión para que salgas siempre como te gusta.',
   services: ['Corte + Barba', 'Fade', 'Perfilado', 'Afeitado clásico', 'Diseño', 'Lavado y tratamientos capilares'],
-  products: [{ type: 'Fijación', name: 'Cera matte', description: 'Fijación flexible y acabado natural.', price: '' }, { type: 'Volumen', name: 'Polvo texturizante', description: 'Volumen instantáneo, textura y acabado seco.', price: '' }, { type: 'Cuidado', name: 'Aceite para barba', description: 'Suaviza, nutre y deja una barba prolija.', price: '' }]
+  products: [{ type: 'Fijación', name: 'Cera matte', description: 'Fijación flexible y acabado natural.', price: '' }, { type: 'Volumen', name: 'Polvo texturizante', description: 'Volumen instantáneo, textura y acabado seco.', price: '' }, { type: 'Cuidado', name: 'Aceite para barba', description: 'Suaviza, nutre y deja una barba prolija.', price: '' }],
+  gallery: ['https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1200&q=85', 'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=1200&q=85']
 };
 const form = document.querySelector('#admin-form');
 const editor = document.querySelector('#products-editor');
@@ -24,6 +25,9 @@ const scheduleStatus = document.querySelector('#schedule-status');
 const appointmentsEmpty = document.querySelector('#appointments-empty');
 const appointmentsTableWrap = document.querySelector('.appointments-table-wrap');
 const appointmentsBody = document.querySelector('#appointments-table tbody');
+const galleryUpload = document.querySelector('#gallery-upload');
+const galleryEditor = document.querySelector('#gallery-editor');
+const galleryStatus = document.querySelector('#gallery-status');
 const supabaseClient = window.CLIP_SUPABASE_URL && window.CLIP_SUPABASE_PUBLISHABLE_KEY && window.supabase
   ? window.supabase.createClient(window.CLIP_SUPABASE_URL, window.CLIP_SUPABASE_PUBLISHABLE_KEY)
   : null;
@@ -35,6 +39,13 @@ const cleanUrl = (value) => {
     return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
   } catch { return ''; }
 };
+const cleanImageUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : '';
+  } catch { return ''; }
+};
+let galleryUrls = [];
 
 const setAuthState = (session) => {
   loginButton.hidden = Boolean(session);
@@ -74,7 +85,26 @@ const populateForm = (values) => {
   form.elements.services.value = (values.services || []).join('\n');
   editor.replaceChildren();
   (values.products || []).forEach(addProductEditor);
+  galleryUrls = (Array.isArray(values.gallery) ? values.gallery : DEFAULT_CONFIG.gallery).map(cleanImageUrl).filter(Boolean).slice(0, 12);
+  renderGalleryEditor();
 };
+
+function renderGalleryEditor() {
+  galleryEditor.replaceChildren();
+  galleryUrls.forEach((url, index) => {
+    const card = document.createElement('div');
+    card.className = 'gallery-editor-item';
+    const image = document.createElement('img');
+    image.src = url;
+    image.alt = `Foto de trabajo ${index + 1}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.dataset.galleryIndex = String(index);
+    remove.textContent = 'Quitar';
+    card.append(image, remove);
+    galleryEditor.append(card);
+  });
+}
 
 populateForm(config);
 if (supabaseClient) {
@@ -87,6 +117,32 @@ if (supabaseClient) {
 
 document.querySelector('#add-product').addEventListener('click', () => addProductEditor());
 editor.addEventListener('click', (event) => event.target.closest('.remove-product')?.closest('.product-editor').remove());
+galleryEditor.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-gallery-index]');
+  if (!button) return;
+  galleryUrls.splice(Number(button.dataset.galleryIndex), 1);
+  renderGalleryEditor();
+});
+galleryUpload.addEventListener('change', async () => {
+  const files = [...galleryUpload.files];
+  const { data: { session } } = supabaseClient ? await supabaseClient.auth.getSession() : { data: { session: null } };
+  if (!session) { galleryStatus.textContent = 'Iniciá sesión para subir fotos.'; return; }
+  const available = 12 - galleryUrls.length;
+  const validFiles = files.slice(0, available).filter((file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) && file.size <= 8 * 1024 * 1024);
+  if (!validFiles.length) { galleryStatus.textContent = 'Elegí fotos JPG, PNG o WEBP de hasta 8 MB.'; return; }
+  galleryStatus.textContent = 'Subiendo fotos…';
+  for (const file of validFiles) {
+    const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `gallery/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+    const { error } = await supabaseClient.storage.from('gallery').upload(path, file, { contentType: file.type, upsert: false });
+    if (error) { galleryStatus.textContent = 'No se pudo subir una de las fotos. Verificá Storage en Supabase.'; continue; }
+    const { data } = supabaseClient.storage.from('gallery').getPublicUrl(path);
+    galleryUrls.push(data.publicUrl);
+  }
+  galleryUpload.value = '';
+  renderGalleryEditor();
+  galleryStatus.textContent = 'Fotos cargadas. Tocá “Guardar cambios” para publicarlas.';
+});
 
 const setScheduleStatus = (message, type = '') => {
   scheduleStatus.textContent = message;
@@ -158,6 +214,7 @@ form.addEventListener('submit', async (event) => {
     type: cleanText(card.querySelector('[data-field="type"]').value, 40),
     description: cleanText(card.querySelector('[data-field="description"]').value, 220)
   })).filter((product) => product.name && product.description);
+  next.gallery = galleryUrls.map(cleanImageUrl).filter(Boolean).slice(0, 12);
   if (sundayStart.value >= sundayEnd.value) {
     status.textContent = 'La hora de inicio de los turnos debe ser anterior a la hora de finalización.';
     return;

@@ -1,0 +1,2 @@
+[functions.create-appointment]
+verify_jwt = false

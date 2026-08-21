@@ -18,6 +18,11 @@ const DEFAULT_CONFIG = {
     { type: 'Fijación', name: 'Cera matte', description: 'Fijación flexible y acabado natural.', price: '' },
     { type: 'Volumen', name: 'Polvo texturizante', description: 'Volumen instantáneo, textura y acabado seco.', price: '' },
     { type: 'Cuidado', name: 'Aceite para barba', description: 'Suaviza, nutre y deja una barba prolija.', price: '' }
+  ],
+  gallery: [
+    'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=1200&q=85',
+    'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=1200&q=85',
+    'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=1200&q=85'
   ]
 };
 
@@ -32,6 +37,12 @@ const safeUrl = (value, fallback) => {
     const url = new URL(String(value));
     return ['https:', 'http:'].includes(url.protocol) ? url.href : fallback;
   } catch { return fallback; }
+};
+const safeImageUrl = (value) => {
+  try {
+    const url = new URL(String(value));
+    return url.protocol === 'https:' ? url.href : '';
+  } catch { return ''; }
 };
 const normalizeConfig = (value = {}) => {
   const source = value && typeof value === 'object' ? value : {};
@@ -49,7 +60,8 @@ const normalizeConfig = (value = {}) => {
     heroEyebrow: text(source.heroEyebrow, DEFAULT_CONFIG.heroEyebrow, 80),
     heroCopy: text(source.heroCopy, DEFAULT_CONFIG.heroCopy, 300),
     services: Array.isArray(source.services) ? source.services.slice(0, 12).map((service) => text(service, '', 80)).filter(Boolean) : DEFAULT_CONFIG.services,
-    products: products.length ? products : DEFAULT_CONFIG.products
+    products: products.length ? products : DEFAULT_CONFIG.products,
+    gallery: Array.isArray(source.gallery) ? source.gallery.slice(0, 12).map(safeImageUrl).filter(Boolean) : DEFAULT_CONFIG.gallery
   };
 };
 
@@ -87,6 +99,24 @@ const renderProducts = () => {
   grid.replaceChildren(fragment);
 };
 
+const renderGallery = () => {
+  const grid = document.querySelector('.gallery-grid');
+  const fragment = document.createDocumentFragment();
+  siteConfig.gallery.forEach((url, index) => {
+    const item = document.createElement('button');
+    item.className = 'gallery-item reveal visible';
+    item.type = 'button';
+    item.dataset.lightbox = url;
+    const image = document.createElement('img');
+    image.src = url;
+    image.alt = `Trabajo de CLIP Barber Studio ${index + 1}`;
+    image.loading = 'lazy';
+    item.append(image);
+    fragment.append(item);
+  });
+  grid.replaceChildren(fragment);
+};
+
 const applySiteConfig = () => {
   document.querySelectorAll('.instagram-link, a[href="#instagram"]').forEach((link) => {
     link.href = siteConfig.instagram;
@@ -107,6 +137,7 @@ const applySiteConfig = () => {
     return item;
   }));
   renderProducts();
+  renderGallery();
 };
 
 applySiteConfig();
@@ -136,7 +167,8 @@ menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', () =
 
 window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 24), { passive: true });
 
-document.querySelector('[data-modal]').addEventListener('click', () => {
+const modalTrigger = document.querySelector('[data-modal]');
+if (modalTrigger) modalTrigger.addEventListener('click', () => {
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
   modal.querySelector('.modal-close').focus();
@@ -148,14 +180,16 @@ const closeModal = (element) => {
 };
 
 modal.querySelector('.modal-close').addEventListener('click', () => closeModal(modal));
-document.querySelectorAll('[data-lightbox]').forEach((item) => item.addEventListener('click', () => {
+document.querySelector('.gallery-grid').addEventListener('click', (event) => {
+  const item = event.target.closest('[data-lightbox]');
+  if (!item) return;
   const image = lightbox.querySelector('img');
   image.src = item.dataset.lightbox;
   image.alt = item.querySelector('img').alt;
   lightbox.classList.add('open');
   lightbox.setAttribute('aria-hidden', 'false');
   lightbox.querySelector('.modal-close').focus();
-}));
+});
 lightbox.querySelector('.modal-close').addEventListener('click', () => closeModal(lightbox));
 
 document.addEventListener('keydown', (event) => {
@@ -244,6 +278,9 @@ if (bookingForm) {
   const bookingService = document.querySelector('#booking-service');
   const bookingStatus = document.querySelector('#booking-status');
   const bookingSubmit = document.querySelector('#booking-submit');
+  const bookingCaptcha = document.querySelector('#booking-captcha');
+  let captchaToken = '';
+  let captchaWidget;
   const dateValue = (date) => {
     const offset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - offset).toISOString().slice(0, 10);
@@ -258,6 +295,27 @@ if (bookingForm) {
   const setBookingStatus = (message, type = '') => {
     bookingStatus.textContent = message;
     bookingStatus.className = `booking-status ${type}`.trim();
+  };
+  const updateBookingButton = () => {
+    bookingSubmit.disabled = bookingTime.disabled || !bookingTime.value || !captchaToken;
+  };
+  const setupCaptcha = () => {
+    const siteKey = window.CLIP_TURNSTILE_SITE_KEY;
+    if (!siteKey) {
+      setBookingStatus('Las reservas todavía no están habilitadas.', 'error');
+      return;
+    }
+    if (!window.turnstile) {
+      window.setTimeout(setupCaptcha, 150);
+      return;
+    }
+    if (captchaWidget !== undefined) return;
+    captchaWidget = window.turnstile.render(bookingCaptcha, {
+      sitekey: siteKey,
+      callback: (token) => { captchaToken = token; updateBookingButton(); },
+      'expired-callback': () => { captchaToken = ''; updateBookingButton(); },
+      'error-callback': () => { captchaToken = ''; updateBookingButton(); setBookingStatus('No se pudo verificar la reserva. Recargá la página.', 'error'); }
+    });
   };
   const loadAvailableSlots = async () => {
     const date = bookingDate.value;
@@ -290,13 +348,14 @@ if (bookingForm) {
       return new Option(time, time);
     }));
     bookingTime.disabled = false;
-    bookingSubmit.disabled = false;
+    updateBookingButton();
     setBookingStatus(`${data.length} horarios disponibles para este domingo.`, 'success');
   };
 
   bookingDate.min = dateValue(new Date());
   bookingDate.value = nextSunday();
   bookingDate.addEventListener('change', loadAvailableSlots);
+  bookingTime.addEventListener('change', updateBookingButton);
   bookingForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const name = bookingName.value.trim();
@@ -305,24 +364,27 @@ if (bookingForm) {
       setBookingStatus('Completá tu nombre, WhatsApp y horario para reservar.', 'error');
       return;
     }
+    if (!captchaToken) { setBookingStatus('Completá la verificación de seguridad para reservar.', 'error'); return; }
     bookingSubmit.disabled = true;
     setBookingStatus('Guardando tu turno…');
-    const { error } = await siteSupabase.rpc('create_appointment', {
-      p_booking_date: bookingDate.value,
-      p_booking_time: bookingTime.value,
-      p_client_name: name,
-      p_client_phone: phone,
-      p_service: bookingService.value
+    const { data, error } = await siteSupabase.functions.invoke('create-appointment', {
+      body: { bookingDate: bookingDate.value, bookingTime: bookingTime.value, clientName: name, clientPhone: phone, service: bookingService.value, turnstileToken: captchaToken }
     });
-    if (error) {
-      setBookingStatus(error.message.includes('Horario') ? 'Ese horario acaba de ocuparse. Elegí otro.' : 'No pudimos reservar el turno. Probá nuevamente.', 'error');
+    if (error || !data?.ok) {
+      const message = data?.error || '';
+      setBookingStatus(message.includes('Horario') ? 'Ese horario acaba de ocuparse. Elegí otro.' : message || 'No pudimos reservar el turno. Probá nuevamente.', 'error');
+      captchaToken = '';
+      if (captchaWidget !== undefined && window.turnstile) window.turnstile.reset(captchaWidget);
       await loadAvailableSlots();
       return;
     }
     bookingName.value = '';
     bookingPhone.value = '';
+    captchaToken = '';
+    if (captchaWidget !== undefined && window.turnstile) window.turnstile.reset(captchaWidget);
     setBookingStatus('¡Turno reservado! Te esperamos en CLIP Barber Studio.', 'success');
     await loadAvailableSlots();
   });
+  setupCaptcha();
   loadAvailableSlots();
 }
