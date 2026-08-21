@@ -20,6 +20,7 @@ const setAuthState = (session) => {
   loginButton.hidden = Boolean(session);
   logoutButton.hidden = !session;
   document.querySelector('#login-fields').hidden = Boolean(session);
+  form.hidden = !session;
   authStatus.textContent = session ? `Conectado como ${session.user.email}. Los cambios se guardan online.` : (supabaseClient ? 'Ingresá para guardar los cambios online.' : 'Modo demo activo. Configurá Supabase para guardar online.');
 };
 
@@ -32,7 +33,10 @@ if (supabaseClient) {
     setAuthState(data.session);
   });
   logoutButton.addEventListener('click', async () => { await supabaseClient.auth.signOut(); setAuthState(null); });
-} else setAuthState(null);
+} else {
+  form.hidden = true;
+  authStatus.textContent = 'El panel todavía no está conectado. Configurá Supabase para habilitar el acceso seguro.';
+}
 
 const addProductEditor = (product = { type: '', name: '', description: '', price: '' }) => {
   const fragment = template.content.cloneNode(true);
