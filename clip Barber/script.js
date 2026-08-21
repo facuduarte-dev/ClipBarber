@@ -129,8 +129,8 @@ const applySiteConfig = () => {
   document.querySelector('.footer-city').textContent = siteConfig.city;
   document.querySelector('.menu-note').textContent = siteConfig.city;
   document.querySelector('.detail span').textContent = siteConfig.address;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteConfig.address}, ${siteConfig.city}`)}`;
-  document.querySelectorAll('a[href*="google.com/maps/search"]').forEach((link) => { link.href = mapUrl; });
+  const mapUrl = 'https://maps.app.goo.gl/f1CQpPvSQQpVAWu78';
+  document.querySelectorAll('.location-info .button, .map-open').forEach((link) => { link.href = mapUrl; });
   const mapEmbed = document.querySelector('#map-embed');
   if (mapEmbed) mapEmbed.src = `https://www.google.com/maps?q=${encodeURIComponent(`${siteConfig.address}, ${siteConfig.city}`)}&output=embed`;
   renderProducts();
