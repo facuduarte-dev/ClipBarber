@@ -374,10 +374,11 @@ if (bookingForm) {
     });
     if (error || !data?.ok) {
       const message = data?.error || '';
-      setBookingStatus(message.includes('Horario') ? 'Ese horario acaba de ocuparse. Elegí otro.' : message || 'No pudimos reservar el turno. Probá nuevamente.', 'error');
+      const friendlyError = message.includes('Horario') ? 'Ese horario acaba de ocuparse. Elegí otro.' : message || 'No pudimos reservar el turno. Probá nuevamente.';
       captchaToken = '';
       if (captchaWidget !== undefined && window.turnstile) window.turnstile.reset(captchaWidget);
       await loadAvailableSlots();
+      setBookingStatus(friendlyError, 'error');
       return;
     }
     bookingName.value = '';
