@@ -80,3 +80,11 @@ html,body{overflow-x:clip}
   .booking-form{padding:16px 12px}
   .booking-captcha{width:116.3%;min-height:58px;transform:scale(.86);transform-origin:left top;margin-bottom:2px}
 }
+
+/* También cubre navegadores que reportan un ancho de escritorio en un celular. */
+.booking .section-heading{margin-inline:auto;text-align:center}
+.booking .section-heading>p:not(.eyebrow){margin-inline:auto}
+.booking-form{width:calc(100% - 32px);max-width:760px;margin-inline:auto}
+.booking-grid,.booking-grid label{width:100%;min-width:0}
+.booking-grid input,.booking-grid select{max-width:100%;min-width:0}
+.booking-status,.booking-grid label{text-align:center}
