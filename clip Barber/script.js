@@ -288,6 +288,18 @@ if (bookingForm) {
     date.setDate(date.getDate() + daysUntilSaturday);
     return dateValue(date);
   };
+  const populateBookingDates = () => {
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const firstSaturday = new Date(`${nextWeekend()}T12:00:00`);
+    const options = Array.from({ length: 10 }, (_, index) => {
+      const date = new Date(firstSaturday);
+      date.setDate(firstSaturday.getDate() + (Math.floor(index / 2) * 7) + (index % 2));
+      const label = `${dayNames[date.getDay()]} ${date.getDate()} de ${monthNames[date.getMonth()]}`;
+      return new Option(label, dateValue(date));
+    });
+    bookingDate.replaceChildren(...options);
+  };
   const setBookingStatus = (message, type = '') => {
     bookingStatus.textContent = message;
     bookingStatus.className = `booking-status ${type}`.trim();
@@ -348,8 +360,7 @@ if (bookingForm) {
     setBookingStatus(`${data.length} horarios disponibles para este día.`, 'success');
   };
 
-  bookingDate.min = dateValue(new Date());
-  bookingDate.value = nextWeekend();
+  populateBookingDates();
   bookingDate.addEventListener('change', loadAvailableSlots);
   bookingTime.addEventListener('change', updateBookingButton);
   bookingForm.addEventListener('submit', async (event) => {
