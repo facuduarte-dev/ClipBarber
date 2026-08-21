@@ -209,6 +209,9 @@ const cartList = document.querySelector('.cart-list');
 const cartEmpty = document.querySelector('.cart-empty');
 const clearCart = document.querySelector('.clear-cart');
 const whatsappOrder = document.querySelector('.whatsapp-order');
+const floatingCart = document.querySelector('#floating-cart');
+const floatingCartCount = document.querySelector('.floating-cart-count');
+const shoppingCart = document.querySelector('#shopping-cart');
 const cart = new Map();
 
 const updateCart = () => {
@@ -233,6 +236,10 @@ const updateCart = () => {
   cartList.replaceChildren(fragment);
   cartEmpty.hidden = products.length > 0;
   clearCart.disabled = products.length === 0;
+  const totalItems = products.reduce((total, [, quantity]) => total + quantity, 0);
+  floatingCartCount.textContent = String(totalItems);
+  floatingCartCount.hidden = totalItems === 0;
+  floatingCart.setAttribute('aria-label', totalItems ? `Abrir carrito, ${totalItems} producto${totalItems === 1 ? '' : 's'}` : 'Abrir carrito');
 
   const items = products.map(([name, quantity]) => `• ${name}  × ${quantity}`).join('\n');
   const message = products.length
@@ -262,6 +269,13 @@ cartList.addEventListener('click', (event) => {
 clearCart.addEventListener('click', () => {
   cart.clear();
   updateCart();
+});
+
+floatingCart.addEventListener('click', () => {
+  shoppingCart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  shoppingCart.classList.remove('cart-highlight');
+  window.requestAnimationFrame(() => shoppingCart.classList.add('cart-highlight'));
+  window.setTimeout(() => shoppingCart.classList.remove('cart-highlight'), 1100);
 });
 
 updateCart();
