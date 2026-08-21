@@ -11,6 +11,9 @@ const whatsappNotifyTo = Deno.env.get('WHATSAPP_NOTIFY_TO') || '59898743328'
 const whatsappTemplateName = Deno.env.get('WHATSAPP_TEMPLATE_NAME')
 const whatsappTemplateLanguage = Deno.env.get('WHATSAPP_TEMPLATE_LANGUAGE') || 'es'
 const whatsappApiVersion = Deno.env.get('WHATSAPP_API_VERSION') || 'v26.0'
+const resendApiKey = Deno.env.get('RESEND_API_KEY')
+const resendFromEmail = Deno.env.get('RESEND_FROM_EMAIL')
+const bookingNotificationEmail = Deno.env.get('BOOKING_NOTIFICATION_EMAIL')
 
 const json = (body: Record<string, unknown>, status = 200, origin = '') => new Response(JSON.stringify(body), {
   status,
@@ -26,19 +29,23 @@ const requestFingerprint = async (ip: string) => {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+const bookingMessage = (booking: { date: string; time: string; name: string; phone: string; service: string }) => [
+  'Nueva reserva en CLIP Barber Studio',
+  '',
+  `Fecha: ${booking.date}`,
+  `Hora: ${booking.time}`,
+  `Cliente: ${booking.name}`,
+  `WhatsApp: ${booking.phone}`,
+  `Servicio: ${booking.service}`,
+].join('\n')
+
+const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] || character))
+
 const sendBookingNotification = async (booking: { date: string; time: string; name: string; phone: string; service: string }) => {
   // La notificación es opcional: si WhatsApp Business no está configurado,
   // la reserva continúa funcionando con normalidad.
   if (!whatsappAccessToken || !whatsappPhoneNumberId || !whatsappNotifyTo) return
-  const message = [
-    '✂️ Nueva reserva en CLIP Barber Studio',
-    '',
-    `Fecha: ${booking.date}`,
-    `Hora: ${booking.time}`,
-    `Cliente: ${booking.name}`,
-    `WhatsApp: ${booking.phone}`,
-    `Servicio: ${booking.service}`,
-  ].join('\n')
+  const message = `✂️ ${bookingMessage(booking)}`
   const payload = whatsappTemplateName
     ? {
         messaging_product: 'whatsapp', to: whatsappNotifyTo, type: 'template',
@@ -55,6 +62,23 @@ const sendBookingNotification = async (booking: { date: string; time: string; na
     body: JSON.stringify(payload),
   })
   if (!response.ok) console.error('No se pudo enviar la notificación de WhatsApp.')
+}
+
+const sendBookingEmail = async (booking: { date: string; time: string; name: string; phone: string; service: string }) => {
+  // El correo es opcional y se configura solamente con secretos de Supabase.
+  if (!resendApiKey || !resendFromEmail || !bookingNotificationEmail) return
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json', 'User-Agent': 'clip-barber-bookings/1.0' },
+    body: JSON.stringify({
+      from: resendFromEmail,
+      to: [bookingNotificationEmail],
+      subject: `Nueva reserva: ${booking.date} ${booking.time}`,
+      text: bookingMessage(booking),
+      html: `<h2>Nueva reserva en CLIP Barber Studio</h2><p><strong>Fecha:</strong> ${escapeHtml(booking.date)}<br><strong>Hora:</strong> ${escapeHtml(booking.time)}<br><strong>Cliente:</strong> ${escapeHtml(booking.name)}<br><strong>WhatsApp:</strong> ${escapeHtml(booking.phone)}<br><strong>Servicio:</strong> ${escapeHtml(booking.service)}</p>`,
+    }),
+  })
+  if (!response.ok) console.error('No se pudo enviar la notificación por correo.')
 }
 
 Deno.serve(async (request) => {
@@ -98,5 +122,6 @@ Deno.serve(async (request) => {
   })
   if (error) return json({ error: error.message }, 400, origin)
   await sendBookingNotification(booking).catch(() => console.error('No se pudo enviar la notificación de WhatsApp.'))
+  await sendBookingEmail(booking).catch(() => console.error('No se pudo enviar la notificación por correo.'))
   return json({ ok: true }, 201, origin)
 })

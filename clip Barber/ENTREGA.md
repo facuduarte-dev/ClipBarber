@@ -22,4 +22,4 @@
 
 ## Avisos por WhatsApp
 
-La función para avisos está publicada, pero necesita una cuenta de WhatsApp Business/Meta verificada y los secretos `WHATSAPP_ACCESS_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID` en Supabase. Mientras tanto, las reservas siguen funcionando con normalidad.
+La función para avisos está publicada, pero necesita una cuenta de WhatsApp Business/Meta verificada y los secretos `WHATSAPP_ACCESS_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID` en Supabase. También puede mandar un correo si se configuran los secretos de Resend. Mientras tanto, las reservas siguen funcionando con normalidad.

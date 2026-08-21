@@ -38,3 +38,13 @@ Servicio: {{5}}
 Después guardá `WHATSAPP_TEMPLATE_NAME=nueva_reserva_clip` y, si corresponde, `WHATSAPP_TEMPLATE_LANGUAGE=es` como secretos. Sin plantilla, Meta solo permite el mensaje de texto cuando existe una conversación reciente con el número destinatario.
 
 La reserva nunca falla si WhatsApp no está configurado o si el proveedor no responde. Los tokens solo viven en los secretos de Supabase, nunca en la web ni en GitHub.
+
+## Aviso por correo (opcional)
+
+La misma función puede avisar por correo usando [Resend](https://resend.com/docs/api-reference/emails/send-email). Creá y verificá un dominio remitente en Resend y guardá estos secretos en Supabase:
+
+- `RESEND_API_KEY`: clave API de Resend.
+- `RESEND_FROM_EMAIL`: remitente verificado, por ejemplo `CLIP Barber <turnos@tudominio.uy>`.
+- `BOOKING_NOTIFICATION_EMAIL`: correo que recibe los avisos.
+
+El correo incluye fecha, hora, cliente, WhatsApp y servicio. Si Resend no está configurado o falla, la reserva no se pierde.
