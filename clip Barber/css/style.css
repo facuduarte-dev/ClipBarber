@@ -88,3 +88,9 @@ html,body{overflow-x:clip}
 .booking-grid,.booking-grid label{width:100%;min-width:0}
 .booking-grid input,.booking-grid select{max-width:100%;min-width:0}
 .booking-status,.booking-grid label{text-align:center}
+
+.map-frame{position:relative;min-height:230px;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:#171717}
+.map-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;filter:grayscale(.92) contrast(1.08) brightness(.8)}
+.map-open{position:absolute;right:14px;bottom:14px;padding:9px 12px;background:rgba(8,8,8,.9);border:1px solid var(--line);color:var(--white);font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.map-open:hover,.map-open:focus-visible{background:var(--gold);border-color:var(--gold);color:var(--black)}
+@media(min-width:700px){.map-frame{min-height:350px}}
