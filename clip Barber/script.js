@@ -194,6 +194,7 @@ document.addEventListener('keydown', (event) => {
   setMenu(false);
   if (modal) closeModal(modal);
   closeModal(lightbox);
+  if (typeof closeCartModal === 'function') closeCartModal();
 });
 
 const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
@@ -212,6 +213,10 @@ const whatsappOrder = document.querySelector('.whatsapp-order');
 const floatingCart = document.querySelector('#floating-cart');
 const floatingCartCount = document.querySelector('.floating-cart-count');
 const shoppingCart = document.querySelector('#shopping-cart');
+const cartModal = document.querySelector('#cart-modal');
+const cartModalSlot = document.querySelector('#cart-modal-slot');
+const cartModalClose = document.querySelector('#cart-modal-close');
+const cartHome = shoppingCart.parentElement;
 const cart = new Map();
 
 const updateCart = () => {
@@ -272,11 +277,24 @@ clearCart.addEventListener('click', () => {
 });
 
 floatingCart.addEventListener('click', () => {
-  shoppingCart.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  shoppingCart.classList.remove('cart-highlight');
-  window.requestAnimationFrame(() => shoppingCart.classList.add('cart-highlight'));
-  window.setTimeout(() => shoppingCart.classList.remove('cart-highlight'), 1100);
+  cartModalSlot.append(shoppingCart);
+  shoppingCart.classList.add('visible');
+  cartModal.classList.add('open');
+  cartModal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  cartModalClose.focus();
 });
+
+const closeCartModal = () => {
+  if (!cartModal.classList.contains('open')) return;
+  cartHome.append(shoppingCart);
+  cartModal.classList.remove('open');
+  cartModal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
+  floatingCart.focus();
+};
+
+cartModalClose.addEventListener('click', closeCartModal);
 
 updateCart();
 
