@@ -373,7 +373,11 @@ if (bookingForm) {
       body: { bookingDate: bookingDate.value, bookingTime: bookingTime.value, clientName: name, clientPhone: phone, service: bookingService.value, website: bookingWebsite.value, turnstileToken: captchaToken }
     });
     if (error || !data?.ok) {
-      const message = data?.error || '';
+      let message = data?.error || '';
+      if (!message && error?.context instanceof Response) {
+        const payload = await error.context.clone().json().catch(() => null);
+        message = payload?.error || '';
+      }
       const friendlyError = message.includes('Horario') ? 'Ese horario acaba de ocuparse. Elegí otro.' : message || 'No pudimos reservar el turno. Probá nuevamente.';
       captchaToken = '';
       if (captchaWidget !== undefined && window.turnstile) window.turnstile.reset(captchaWidget);
