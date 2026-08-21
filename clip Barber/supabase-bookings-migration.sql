@@ -1,8 +1,8 @@
--- Ejecutá este archivo en Supabase > SQL Editor para activar los turnos de domingo.
+-- Ejecutá este archivo en Supabase > SQL Editor para activar los turnos de fin de semana.
 -- Requiere haber ejecutado antes supabase-security-migration.sql.
 
 create table if not exists public.sunday_schedule (
-  id text primary key check (id = 'sunday'),
+  id text primary key check (id in ('saturday', 'sunday')),
   enabled boolean not null default true,
   start_time time not null default '09:00',
   end_time time not null default '13:00',
@@ -11,13 +11,18 @@ create table if not exists public.sunday_schedule (
   check (start_time < end_time)
 );
 
+alter table public.sunday_schedule drop constraint if exists sunday_schedule_id_check;
+alter table public.sunday_schedule drop constraint if exists sunday_schedule_weekend_id_check;
+alter table public.sunday_schedule
+  add constraint sunday_schedule_weekend_id_check check (id in ('saturday', 'sunday'));
+
 insert into public.sunday_schedule (id)
-values ('sunday')
+values ('saturday'), ('sunday')
 on conflict (id) do nothing;
 
 create table if not exists public.appointments (
   id bigint generated always as identity primary key,
-  booking_date date not null check (extract(isodow from booking_date) = 7),
+  booking_date date not null check (extract(isodow from booking_date) in (6, 7)),
   booking_time time not null,
   client_name text not null check (char_length(client_name) between 2 and 80),
   client_phone text not null check (client_phone ~ '^\d{8,15}$'),
@@ -25,6 +30,11 @@ create table if not exists public.appointments (
   created_at timestamptz not null default now(),
   unique (booking_date, booking_time)
 );
+
+alter table public.appointments drop constraint if exists appointments_booking_date_check;
+alter table public.appointments drop constraint if exists appointments_weekend_date_check;
+alter table public.appointments
+  add constraint appointments_weekend_date_check check (extract(isodow from booking_date) in (6, 7));
 
 create table if not exists public.site_staff (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -37,18 +47,19 @@ alter table public.site_staff enable row level security;
 revoke all on table public.site_staff from anon, authenticated;
 
 drop policy if exists "La web consulta horarios de domingo" on public.sunday_schedule;
+drop policy if exists "La web consulta horarios de fin de semana" on public.sunday_schedule;
 drop policy if exists "Solo administradores modifican horarios" on public.sunday_schedule;
 drop policy if exists "Solo administradores ven reservas" on public.appointments;
 drop policy if exists "Personal autorizado ve reservas" on public.appointments;
 
-create policy "La web consulta horarios de domingo"
+create policy "La web consulta horarios de fin de semana"
 on public.sunday_schedule for select to anon, authenticated
-using (id = 'sunday');
+using (id in ('saturday', 'sunday'));
 
 create policy "Solo administradores modifican horarios"
 on public.sunday_schedule for all to authenticated
-using (id = 'sunday' and public.is_site_admin())
-with check (id = 'sunday' and public.is_site_admin());
+using (id in ('saturday', 'sunday') and public.is_site_admin())
+with check (id in ('saturday', 'sunday') and public.is_site_admin());
 
 create or replace function public.can_view_appointments()
 returns boolean
@@ -68,7 +79,9 @@ create policy "Personal autorizado ve reservas"
 on public.appointments for select to authenticated
 using (public.can_view_appointments());
 
-create or replace function public.available_sunday_slots(p_booking_date date)
+drop function if exists public.available_sunday_slots(date);
+
+create or replace function public.available_weekend_slots(p_booking_date date)
 returns table (booking_time time)
 language plpgsql
 stable
@@ -82,11 +95,12 @@ begin
   if p_booking_date is null
     or p_booking_date < local_today
     or p_booking_date > local_today + 90
-    or extract(isodow from p_booking_date) <> 7 then
+    or extract(isodow from p_booking_date) not in (6, 7) then
     return;
   end if;
 
-  select * into schedule from public.sunday_schedule where id = 'sunday';
+  select * into schedule from public.sunday_schedule
+  where id = case when extract(isodow from p_booking_date) = 6 then 'saturday' else 'sunday' end;
   if not found or not schedule.enabled then return; end if;
 
   return query
@@ -123,7 +137,7 @@ begin
   if p_booking_date is null
     or p_booking_date < local_today
     or p_booking_date > local_today + 90
-    or extract(isodow from p_booking_date) <> 7 then
+    or extract(isodow from p_booking_date) not in (6, 7) then
     raise exception 'Fecha no disponible';
   end if;
   if char_length(trim(p_client_name)) not between 2 and 80
@@ -139,7 +153,7 @@ begin
     select 1 from public.appointments
     where client_phone = trim(p_client_phone) and booking_date = p_booking_date
   ) then
-    raise exception 'Ya tenés un turno reservado para este domingo';
+    raise exception 'Ya tenés un turno reservado para este día';
   end if;
   if (
     select count(*) from public.appointments
@@ -148,7 +162,8 @@ begin
     raise exception 'Este número ya alcanzó el máximo de dos turnos futuros';
   end if;
 
-  select * into schedule from public.sunday_schedule where id = 'sunday';
+  select * into schedule from public.sunday_schedule
+  where id = case when extract(isodow from p_booking_date) = 6 then 'saturday' else 'sunday' end;
   if not found or not schedule.enabled then raise exception 'Turnos no disponibles'; end if;
   if p_booking_time < schedule.start_time or p_booking_time >= schedule.end_time
     or mod(extract(epoch from (p_booking_time - schedule.start_time))::integer / 60, schedule.slot_minutes) <> 0 then
@@ -163,9 +178,9 @@ exception when unique_violation then
 end;
 $$;
 
-revoke all on function public.available_sunday_slots(date) from public;
+revoke all on function public.available_weekend_slots(date) from public;
 revoke all on function public.create_appointment(date, time, text, text, text) from public;
-grant execute on function public.available_sunday_slots(date) to anon, authenticated;
+grant execute on function public.available_weekend_slots(date) to anon, authenticated;
 grant execute on function public.create_appointment(date, time, text, text, text) to service_role;
 
 -- Para dar acceso a un barbero, creá primero su usuario en Authentication > Users

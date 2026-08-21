@@ -8,7 +8,7 @@
 
 Si ya habías ejecutado la versión anterior, corré `supabase-security-migration.sql` en SQL Editor y después autorizá tu email al final de ese mismo archivo.
 
-Para activar las reservas de domingo, ejecutá después `supabase-bookings-migration.sql` en SQL Editor.
+Para activar las reservas de sábados y domingos, ejecutá después `supabase-bookings-migration.sql` en SQL Editor. Si ya lo habías ejecutado, volvelo a ejecutar tras esta actualización.
 
 Para que el administrador pueda subir fotos de trabajos, ejecutá también `supabase-gallery-migration.sql` en SQL Editor.
 

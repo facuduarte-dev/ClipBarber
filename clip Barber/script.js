@@ -285,11 +285,12 @@ if (bookingForm) {
     const offset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - offset).toISOString().slice(0, 10);
   };
-  const isSunday = (value) => new Date(`${value}T12:00:00`).getDay() === 0;
-  const nextSunday = () => {
+  const isWeekend = (value) => [0, 6].includes(new Date(`${value}T12:00:00`).getDay());
+  const nextWeekend = () => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
-    date.setDate(date.getDate() + ((7 - date.getDay()) % 7 || 7));
+    const daysUntilSaturday = (6 - date.getDay() + 7) % 7 || 7;
+    date.setDate(date.getDate() + daysUntilSaturday);
     return dateValue(date);
   };
   const setBookingStatus = (message, type = '') => {
@@ -322,9 +323,9 @@ if (bookingForm) {
     bookingTime.replaceChildren(new Option('Cargando horarios…', ''));
     bookingTime.disabled = true;
     bookingSubmit.disabled = true;
-    if (!isSunday(date)) {
-      setBookingStatus('Elegí un domingo para reservar tu turno.', 'error');
-      bookingTime.replaceChildren(new Option('Elegí un domingo', ''));
+    if (!isWeekend(date)) {
+      setBookingStatus('Elegí un sábado o domingo para reservar tu turno.', 'error');
+      bookingTime.replaceChildren(new Option('Elegí un sábado o domingo', ''));
       return;
     }
     if (!siteSupabase) {
@@ -332,14 +333,14 @@ if (bookingForm) {
       bookingTime.replaceChildren(new Option('Turnos no disponibles', ''));
       return;
     }
-    const { data, error } = await siteSupabase.rpc('available_sunday_slots', { p_booking_date: date });
+    const { data, error } = await siteSupabase.rpc('available_weekend_slots', { p_booking_date: date });
     if (error) {
       setBookingStatus('No pudimos cargar los horarios. Probá de nuevo en unos minutos.', 'error');
       bookingTime.replaceChildren(new Option('Horarios no disponibles', ''));
       return;
     }
     if (!data?.length) {
-      setBookingStatus('No hay horarios disponibles para ese domingo.', 'error');
+      setBookingStatus('No hay horarios disponibles para ese día.', 'error');
       bookingTime.replaceChildren(new Option('Sin horarios disponibles', ''));
       return;
     }
@@ -349,11 +350,11 @@ if (bookingForm) {
     }));
     bookingTime.disabled = false;
     updateBookingButton();
-    setBookingStatus(`${data.length} horarios disponibles para este domingo.`, 'success');
+    setBookingStatus(`${data.length} horarios disponibles para este día.`, 'success');
   };
 
   bookingDate.min = dateValue(new Date());
-  bookingDate.value = nextSunday();
+  bookingDate.value = nextWeekend();
   bookingDate.addEventListener('change', loadAvailableSlots);
   bookingTime.addEventListener('change', updateBookingButton);
   bookingForm.addEventListener('submit', async (event) => {

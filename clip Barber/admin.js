@@ -17,6 +17,10 @@ const config = { ...DEFAULT_CONFIG, ...(readLocalConfig() || {}) };
 const authStatus = document.querySelector('#auth-status');
 const loginButton = document.querySelector('#login-button');
 const logoutButton = document.querySelector('#logout-button');
+const saturdayEnabled = document.querySelector('#saturday-enabled');
+const saturdayStart = document.querySelector('#saturday-start');
+const saturdayEnd = document.querySelector('#saturday-end');
+const saturdaySlotMinutes = document.querySelector('#saturday-slot-minutes');
 const sundayEnabled = document.querySelector('#sunday-enabled');
 const sundayStart = document.querySelector('#sunday-start');
 const sundayEnd = document.querySelector('#sunday-end');
@@ -54,7 +58,7 @@ const setAuthState = (session) => {
   form.hidden = !session;
   authStatus.textContent = session ? `Conectado como ${session.user.email}. Los cambios se guardan online.` : (supabaseClient ? 'Ingresá para guardar los cambios online.' : 'Modo demo activo. Configurá Supabase para guardar online.');
   if (session) {
-    loadSundaySchedule();
+    loadWeekendSchedule();
     loadAppointments();
   }
 };
@@ -171,15 +175,21 @@ const renderAppointments = (appointments) => {
   appointmentsEmpty.hidden = appointments.length > 0;
   appointmentsTableWrap.hidden = appointments.length === 0;
 };
-const loadSundaySchedule = async () => {
+const loadWeekendSchedule = async () => {
   if (!supabaseClient) return;
-  const { data, error } = await supabaseClient.from('sunday_schedule').select('*').eq('id', 'sunday').single();
+  const { data, error } = await supabaseClient.from('sunday_schedule').select('*').in('id', ['saturday', 'sunday']);
   if (error) { setScheduleStatus('Falta activar el módulo de turnos en Supabase.'); return; }
-  sundayEnabled.checked = data.enabled;
-  sundayStart.value = String(data.start_time).slice(0, 5);
-  sundayEnd.value = String(data.end_time).slice(0, 5);
-  sundaySlotMinutes.value = String(data.slot_minutes);
-  setScheduleStatus(data.enabled ? 'Los turnos de domingo están habilitados.' : 'Los turnos de domingo están pausados.');
+  const schedules = Object.fromEntries((data || []).map((schedule) => [schedule.id, schedule]));
+  if (!schedules.saturday || !schedules.sunday) { setScheduleStatus('Actualizá el módulo de turnos en Supabase para habilitar sábados y domingos.'); return; }
+  saturdayEnabled.checked = schedules.saturday.enabled;
+  saturdayStart.value = String(schedules.saturday.start_time).slice(0, 5);
+  saturdayEnd.value = String(schedules.saturday.end_time).slice(0, 5);
+  saturdaySlotMinutes.value = String(schedules.saturday.slot_minutes);
+  sundayEnabled.checked = schedules.sunday.enabled;
+  sundayStart.value = String(schedules.sunday.start_time).slice(0, 5);
+  sundayEnd.value = String(schedules.sunday.end_time).slice(0, 5);
+  sundaySlotMinutes.value = String(schedules.sunday.slot_minutes);
+  setScheduleStatus('Configurá y guardá los horarios de sábados y domingos.');
 };
 const loadAppointments = async () => {
   if (!supabaseClient) return;
@@ -215,13 +225,15 @@ form.addEventListener('submit', async (event) => {
     description: cleanText(card.querySelector('[data-field="description"]').value, 220)
   })).filter((product) => product.name && product.description);
   next.gallery = galleryUrls.map(cleanImageUrl).filter(Boolean).slice(0, 12);
-  if (sundayStart.value >= sundayEnd.value) {
+  const schedules = [
+    { id: 'saturday', enabled: saturdayEnabled.checked, start_time: saturdayStart.value, end_time: saturdayEnd.value, slot_minutes: Number(saturdaySlotMinutes.value) },
+    { id: 'sunday', enabled: sundayEnabled.checked, start_time: sundayStart.value, end_time: sundayEnd.value, slot_minutes: Number(sundaySlotMinutes.value) }
+  ];
+  if (schedules.some((schedule) => schedule.start_time >= schedule.end_time)) {
     status.textContent = 'La hora de inicio de los turnos debe ser anterior a la hora de finalización.';
     return;
   }
-  const { error: scheduleError } = await supabaseClient.from('sunday_schedule').upsert({
-    id: 'sunday', enabled: sundayEnabled.checked, start_time: sundayStart.value, end_time: sundayEnd.value, slot_minutes: Number(sundaySlotMinutes.value)
-  });
+  const { error: scheduleError } = await supabaseClient.from('sunday_schedule').upsert(schedules);
   if (scheduleError) { status.textContent = 'No se pudieron guardar los horarios. Activá primero el módulo de turnos en Supabase.'; return; }
   const { error } = await supabaseClient.from('site_config').upsert({ id: 'clip', data: next, updated_at: new Date().toISOString() });
   if (error) { status.textContent = `No se pudo guardar online: ${error.message}`; return; }
