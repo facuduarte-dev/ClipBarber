@@ -224,6 +224,7 @@ const cartModalSlot = document.querySelector('#cart-modal-slot');
 const cartModalClose = document.querySelector('#cart-modal-close');
 const cartHome = shoppingCart.parentElement;
 const cart = new Map();
+let previousCartTotal = 0;
 
 const updateCart = () => {
   const products = [...cart.entries()];
@@ -250,6 +251,11 @@ const updateCart = () => {
   const totalItems = products.reduce((total, [, quantity]) => total + quantity, 0);
   floatingCartCount.textContent = String(totalItems);
   floatingCartCount.hidden = totalItems === 0;
+  if (totalItems !== previousCartTotal) {
+    floatingCartCount.classList.remove('cart-count-pop');
+    window.requestAnimationFrame(() => floatingCartCount.classList.add('cart-count-pop'));
+  }
+  previousCartTotal = totalItems;
   floatingCart.setAttribute('aria-label', totalItems ? `Abrir carrito, ${totalItems} producto${totalItems === 1 ? '' : 's'}` : 'Abrir carrito');
 
   const items = products.map(([name, quantity]) => `• ${name}  × ${quantity}`).join('\n');
