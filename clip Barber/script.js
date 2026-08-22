@@ -162,7 +162,13 @@ menuToggle.addEventListener('click', () => setMenu(true));
 menuClose.addEventListener('click', () => setMenu(false));
 menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setMenu(false)));
 
-window.addEventListener('scroll', () => header.classList.toggle('scrolled', window.scrollY > 24), { passive: true });
+let scrollMotionTimer;
+window.addEventListener('scroll', () => {
+  header.classList.toggle('scrolled', window.scrollY > 24);
+  document.body.classList.add('is-scrolling');
+  window.clearTimeout(scrollMotionTimer);
+  scrollMotionTimer = window.setTimeout(() => document.body.classList.remove('is-scrolling'), 110);
+}, { passive: true });
 
 const modalTrigger = document.querySelector('[data-modal]');
 if (modalTrigger && modal) modalTrigger.addEventListener('click', () => {
